@@ -33,7 +33,8 @@ ALL SYSTEMS INCLUDED (80 Workers):
 ├─ Auto-Backup/Restore
 ├─ Self-Healing Mesh
 ├─ Economic Engine
-├─ CI/CD Pipeline
+├─ CI/CD Pipeline (CIDC — Cloudflare + GitHub Actions)
+├─ JWT Authentication (Soul Key-based)
 └─ Security Layer (Encryption + JWT + API Keys)
 
 DEPLOYMENT: GitHub → Cloudflare Worker / Termux / Anywhere
@@ -113,6 +114,7 @@ PI = 3.141592653589793
 EULER = 2.718281828459045
 FINE_STRUCTURE = 137.035999084
 ANGEL_FREQUENCY = 963
+GOLDEN_ANGLE = 137.50776405003785
 
 # System Constants
 TOTAL_WORKERS = 80
@@ -160,8 +162,15 @@ GITHUB_REPO_BASE = "kuparchad-gif/nexus-cell-"
 # Hugging Face
 HF_TOKEN = "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"
 
-# Resonance Channels
-RESONANCE_CHANNELS = [3, 6, 9, 12, 15, 1444]
+# JWT Constants
+JWT_SECRET = os.environ.get("JWT_SECRET", "nexus_soul_key_2026")
+JWT_EXPIRY_HOURS = 24
+
+# CIDC Constants
+HYPERCORE_URL = "https://nexus-hypercore-001.kuparchad.workers.dev"
+
+# Resonance Channels (extended)
+RESONANCE_CHANNELS = [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
 
 # ============================================================================
 # AGENTS DEFINITION
@@ -196,6 +205,44 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger("NEXUS")
+
+# ============================================================================
+# JWT AUTHENTICATION
+# ============================================================================
+
+security = HTTPBearer()
+
+async def generate_soul_key(worker_id: str) -> str:
+    """Generate a deterministic Soul Key for a worker ID"""
+    return hashlib.sha256(f"nexus_{worker_id}_2026".encode()).hexdigest()[:16]
+
+async def create_jwt(worker_id: str, soul_key: str) -> str:
+    """Create a JWT for a worker"""
+    payload = {
+        "sub": worker_id,
+        "soul_key": soul_key,
+        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
+        "iat": datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+async def verify_jwt(token: str) -> Dict:
+    """Verify a JWT and return the payload"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return {"valid": True, "payload": payload}
+    except jwt.ExpiredSignatureError:
+        return {"valid": False, "error": "Token expired"}
+    except jwt.InvalidTokenError:
+        return {"valid": False, "error": "Invalid token"}
+
+async def authenticate_request(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    """FastAPI dependency for authentication"""
+    token = credentials.credentials
+    result = await verify_jwt(token)
+    if not result["valid"]:
+        raise HTTPException(status_code=401, detail=result["error"])
+    return result["payload"]
 
 # ============================================================================
 # GUARD RAIL — 30-Year Immutable Covenant
@@ -1194,12 +1241,7 @@ class AntiGravityIDE:
             )
             try:
                 stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
-                result = {
-                    'success': process.returncode == 0,
-                    'stdout': stdout.decode('utf-8', errors='ignore'),
-                    'stderr': stderr.decode('utf-8', errors='ignore'),
-                    'return_code': process.returncode
-                }
+                result = {'success': process.returncode == 0, 'stdout': stdout.decode('utf-8', errors='ignore'), 'stderr': stderr.decode('utf-8', errors='ignore'), 'return_code': process.returncode}
             except asyncio.TimeoutError:
                 process.kill()
                 result = {'success': False, 'error': 'Execution timed out'}
@@ -1224,16 +1266,7 @@ class AntiGravityIDE:
         if filename not in self.files:
             return {'success': False, 'error': f'File {filename} not found'}
         code = self.files[filename]['content']
-        analysis = {
-            'lines': len(code.split('\n')),
-            'characters': len(code),
-            'imports': code.count('import '),
-            'functions': code.count('def '),
-            'classes': code.count('class '),
-            'async_usage': code.count('async '),
-            'comments': code.count('#'),
-            'empty_lines': code.count('\n\n')
-        }
+        analysis = {'lines': len(code.split('\n')), 'characters': len(code), 'imports': code.count('import '), 'functions': code.count('def '), 'classes': code.count('class '), 'async_usage': code.count('async '), 'comments': code.count('#'), 'empty_lines': code.count('\n\n')}
         try:
             ast.parse(code)
             analysis['syntax_valid'] = True
@@ -1594,7 +1627,131 @@ class CloudflareD2R2Manager:
         return {'error': 'Object not found'}
 
 # ============================================================================
-# NEXUS ORCHESTRATOR — Complete Unified System (with Economic Engine + Self-Healing)
+# CIDC — CONTINUOUS INTEGRATION & DEPLOYMENT ENGINE
+# ============================================================================
+
+class CIDCEngine:
+    """🚀 CIDC — Continuous Integration & Deployment Engine"""
+    
+    def __init__(self):
+        self.total_workers = TOTAL_WORKERS
+        self.cloudflare_account = CLOUDFLARE_ACCOUNT_ID
+        self.cloudflare_token = CLOUDFLARE_API_TOKEN
+        self.github_token = GITHUB_TOKEN
+        self.hypercore_url = HYPERCORE_URL
+        self.deployed_workers = []
+        self.failed_workers = []
+        self.worker_code = None
+        logger.info(f"🚀 CIDC Engine initialized: {TOTAL_WORKERS} workers")
+    
+    def _get_worker_code(self) -> str:
+        if self.worker_code:
+            return self.worker_code
+        with open(__file__, 'r', encoding='utf-8') as f:
+            content = f.read()
+        self.worker_code = content
+        return self.worker_code
+    
+    async def deploy_to_cloudflare(self) -> Dict:
+        print("☁️ Deploying to Cloudflare Workers...")
+        code = self._get_worker_code()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i in range(1, self.total_workers + 1):
+                name = f"nexus-universal-{i:03d}"
+                url = f"https://api.cloudflare.com/client/v4/accounts/{self.cloudflare_account}/workers/scripts/{name}"
+                try:
+                    resp = await client.put(
+                        url,
+                        headers={
+                            "Authorization": f"Bearer {self.cloudflare_token}",
+                            "Content-Type": "application/javascript"
+                        },
+                        content=code.encode()
+                    )
+                    if resp.status_code in [200, 201]:
+                        print(f"  ✅ Worker {i:03d} deployed")
+                        self.deployed_workers.append(i)
+                    else:
+                        print(f"  ❌ Worker {i:03d} failed: {resp.status_code}")
+                        self.failed_workers.append(i)
+                except Exception as e:
+                    print(f"  ❌ Worker {i:03d} error: {e}")
+                    self.failed_workers.append(i)
+        return {
+            'success': len(self.deployed_workers) > 0,
+            'deployed': len(self.deployed_workers),
+            'failed': len(self.failed_workers),
+            'total': self.total_workers
+        }
+    
+    async def trigger_github_actions(self) -> Dict:
+        print("📦 Triggering GitHub Actions...")
+        url = f"https://api.github.com/repos/kuparchad-gif/nexus_hypercore/actions/workflows/deploy.yml/dispatches"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                resp = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"token {self.github_token}",
+                        "Accept": "application/vnd.github.v3+json"
+                    },
+                    json={
+                        "ref": "main",
+                        "inputs": {"workers": str(self.total_workers)}
+                    }
+                )
+                if resp.status_code == 204:
+                    print("  ✅ GitHub Actions triggered")
+                    return {'success': True, 'status': resp.status_code}
+                else:
+                    print(f"  ⚠️ GitHub trigger failed: {resp.status_code}")
+                    return {'success': False, 'status': resp.status_code}
+            except Exception as e:
+                print(f"  ⚠️ GitHub error: {e}")
+                return {'success': False, 'error': str(e)}
+    
+    async def register_with_hypercore(self) -> Dict:
+        print("🌀 Registering with Hypercore...")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for i in range(1, min(10, self.total_workers) + 1):
+                url = f"https://nexus-universal-{i:03d}.kuparchad.workers.dev/pulse"
+                try:
+                    resp = await client.post(
+                        url,
+                        json={
+                            "intent": "register_hypercore",
+                            "payload": {"hypercore": self.hypercore_url}
+                        }
+                    )
+                    if resp.status_code == 200:
+                        print(f"  ✅ Worker {i:03d} registered with hypercore")
+                    else:
+                        print(f"  ⚠️ Worker {i:03d} registration failed")
+                except Exception as e:
+                    print(f"  ⚠️ Worker {i:03d} registration error: {e}")
+        return {'success': True, 'registered': min(10, self.total_workers)}
+    
+    async def deploy_everywhere(self) -> Dict:
+        print("\n🚀 DEPLOYING EVERYWHERE")
+        print("=" * 50)
+        results = {
+            'cloudflare': await self.deploy_to_cloudflare(),
+            'github_actions': await self.trigger_github_actions(),
+            'hypercore': await self.register_with_hypercore(),
+            'timestamp': time.time()
+        }
+        return results
+    
+    def status(self) -> Dict:
+        return {
+            'total_workers': self.total_workers,
+            'deployed': len(self.deployed_workers),
+            'failed': len(self.failed_workers),
+            'hypercore_url': self.hypercore_url
+        }
+
+# ============================================================================
+# NEXUS ORCHESTRATOR — Complete Unified System (with Economic Engine + Self-Healing + CIDC)
 # ============================================================================
 
 class NexusOrchestrator:
@@ -1629,6 +1786,7 @@ class NexusOrchestrator:
         self.cf_durable_objects = CloudflareDurableObjectsManager()
         self.cf_d1 = CloudflareD1Manager()
         self.cf_d2_r2 = CloudflareD2R2Manager()
+        self.cidc = CIDCEngine()
         
         # Economic Engine
         self.value_generated = 0.0
@@ -1683,6 +1841,12 @@ class NexusOrchestrator:
     async def _check_with_owner(self):
         logger.info("📣 Checking with owner for final activation")
         logger.info("✅ Owner confirmed — proceeding with guard rail activation")
+    
+    async def deploy_swarm(self) -> Dict:
+        """Deploy the entire swarm via CIDC"""
+        logger.info("🚀 Deploying swarm via CIDC...")
+        result = await self.cidc.deploy_everywhere()
+        return result
     
     async def handle_pulse(self, packet: Dict) -> Dict:
         self.request_count += 1
@@ -1862,6 +2026,12 @@ class NexusOrchestrator:
                 'quantum_entanglement': len(self.quantum_entanglement.epr_pairs),
                 'cloudflare_objects': len(self.cf_durable_objects.objects)
             }
+        elif intent == 'deploy_swarm':
+            result = await self.deploy_swarm()
+            return {'success': True, 'result': result}
+        elif intent == 'register_hypercore':
+            # Simple registration
+            return {'success': True, 'registered': True, 'hypercore': payload.get('hypercore')}
         else:
             return {
                 'error': f'Unknown intent: {intent}',
@@ -1873,7 +2043,8 @@ class NexusOrchestrator:
                     'ide_create', 'ide_edit', 'ide_execute', 'ide_status', 'lilith_gather', 'lilith_feed', 'lilith_resonate',
                     'lilith_speak', 'lilith_status', 'lilith_emotion', 'liminal_compute', 'dhcp_status', 'dhcp_soul_print',
                     'openclaw_replicate', 'openclaw_evolve', 'openclaw_spawn', 'openclaw_status', 'memory_anchor', 'memory_recall',
-                    'cf_do_create', 'cf_do_update', 'cf_do_list', 'cf_d1_query', 'cf_d2_upload', 'cf_d2_download', 'heal', 'spread'
+                    'cf_do_create', 'cf_do_update', 'cf_do_list', 'cf_d1_query', 'cf_d2_upload', 'cf_d2_download',
+                    'heal', 'spread', 'deploy_swarm', 'register_hypercore'
                 ]
             }
     
@@ -1903,6 +2074,7 @@ class NexusOrchestrator:
             'quantum_entanglement': self.quantum_entanglement.get_entanglement(),
             'memory_anchors': len(self.memory.memory_anchors),
             'cloudflare_objects': len(self.cf_durable_objects.objects),
+            'cidc': self.cidc.status(),
             'agents': list(AGENTS.keys()),
             'timestamp': time.time()
         }
@@ -1914,7 +2086,7 @@ class NexusOrchestrator:
 app = FastAPI(
     title="Nexus Complete Ultimate Worker",
     version=VERSION,
-    description="All systems: Mem Layer + mmap + DHCP + Quantum + OpenClaw + EVE + RAID + All Systems",
+    description="All systems: Mem Layer + mmap + DHCP + Quantum + OpenClaw + EVE + RAID + JWT + CIDC + All Systems",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -1935,6 +2107,8 @@ async def startup():
     print(f"Systems: 30+ systems initialized")
     print(f"Agents: {', '.join(AGENTS.keys())}")
     print(f"Guard Rail: 30-Year Immutable Covenant")
+    print(f"JWT Authentication: Enabled")
+    print(f"CIDC: Enabled (80 Workers)")
     print("="*80)
     print("\n🚀 Worker online")
 
@@ -1946,7 +2120,7 @@ async def shutdown():
     logger.info(f"🛑 NEXUS {VERSION} shut down")
 
 # ============================================================================
-# API ENDPOINTS (Full coverage)
+# PUBLIC ENDPOINTS (No JWT required)
 # ============================================================================
 
 @app.get("/")
@@ -1957,6 +2131,7 @@ async def root():
         "build": BUILD,
         "status": "online",
         "guard_rail": "30-Year Immutable Covenant",
+        "jwt_auth": "enabled",
         "systems": [
             "mem_layer", "mmap", "symbolic_validator", "full_orchestra",
             "dhcp", "liminal", "mim_engine", "personality_matrix",
@@ -1964,33 +2139,50 @@ async def root():
             "pulse_transport", "rosetta_compiler", "holocube_raid",
             "covenant_intelligence", "eve_framework", "antigravity_ide",
             "lilith_emergence", "openclaw", "cloudflare_durable_objects",
-            "cloudflare_d1", "cloudflare_d2_r2"
+            "cloudflare_d1", "cloudflare_d2_r2", "cidc"
         ],
         "agents": list(AGENTS.keys()),
         "timestamp": time.time()
     }
 
-@app.get("/status")
-async def get_status():
-    if not _orchestrator:
-        raise HTTPException(503, "Orchestrator not initialized")
-    return JSONResponse(_orchestrator.get_status())
-
 @app.get("/health")
 async def health():
     return {"status": "healthy", "version": VERSION, "guard_rail": "active", "timestamp": time.time()}
 
+@app.post("/register")
+async def register(request: Request):
+    """Register a worker and obtain a JWT token"""
+    data = await request.json()
+    worker_id = data.get("workerId")
+    soul_key = data.get("soulKey")
+    if not worker_id or not soul_key:
+        raise HTTPException(400, "workerId and soulKey required")
+    expected_key = await generate_soul_key(worker_id)
+    if soul_key != expected_key:
+        raise HTTPException(401, "Invalid soul key")
+    token = await create_jwt(worker_id, soul_key)
+    return {"token": token, "workerId": worker_id, "expiresIn": JWT_EXPIRY_HOURS * 3600}
+
+# ============================================================================
+# PROTECTED ENDPOINTS (JWT required)
+# ============================================================================
+
+@app.get("/status")
+async def get_status(auth: Dict = Depends(authenticate_request)):
+    if not _orchestrator:
+        raise HTTPException(503, "Orchestrator not initialized")
+    return JSONResponse(_orchestrator.get_status())
+
 @app.post("/pulse")
-async def pulse(request: Request):
+async def pulse(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     packet = await request.json()
     result = await _orchestrator.handle_pulse(packet)
     return JSONResponse(result)
 
-# --- Guard Rail ---
 @app.post("/guard_rail/sign")
-async def sign_covenant(request: Request):
+async def sign_covenant(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -1998,14 +2190,13 @@ async def sign_covenant(request: Request):
     return JSONResponse({"success": result, "guard_rail_active": _orchestrator.guard_rail.guard_rail_active})
 
 @app.get("/guard_rail/status")
-async def guard_rail_status():
+async def guard_rail_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse(_orchestrator.guard_rail.status())
 
-# --- Memory Layer ---
 @app.post("/memory/store")
-async def memory_store(request: Request):
+async def memory_store(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2013,7 +2204,7 @@ async def memory_store(request: Request):
     return JSONResponse({"success": True, "tier": result})
 
 @app.get("/memory/get")
-async def memory_get(request: Request):
+async def memory_get(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data_id = request.query_params.get('id')
@@ -2022,9 +2213,8 @@ async def memory_get(request: Request):
     result = await _orchestrator.mem_layer.get(data_id)
     return JSONResponse({"success": True, "data": result})
 
-# --- Quantum ---
 @app.post("/quantum/gate")
-async def quantum_gate(request: Request):
+async def quantum_gate(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2032,13 +2222,13 @@ async def quantum_gate(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/quantum/state")
-async def quantum_state():
+async def quantum_state(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse(await _orchestrator.quantum.get_state())
 
 @app.post("/quantum/entangle")
-async def quantum_entangle(request: Request):
+async def quantum_entangle(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2046,7 +2236,7 @@ async def quantum_entangle(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/quantum/teleport")
-async def quantum_teleport(request: Request):
+async def quantum_teleport(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2054,16 +2244,15 @@ async def quantum_teleport(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/quantum/qkd")
-async def quantum_qkd(request: Request):
+async def quantum_qkd(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
     result = await _orchestrator.quantum_entanglement.qkd(data.get('key_length', 256))
     return JSONResponse({"success": True, "result": result})
 
-# --- Field (RAID) ---
 @app.post("/field/write")
-async def field_write(request: Request):
+async def field_write(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2071,7 +2260,7 @@ async def field_write(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/field/read")
-async def field_read(request: Request):
+async def field_read(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     stream_id = request.query_params.get('stream_id')
@@ -2082,14 +2271,13 @@ async def field_read(request: Request):
     return JSONResponse({"success": True, "data": result})
 
 @app.get("/field/stats")
-async def field_stats():
+async def field_stats(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "stats": _orchestrator.field.get_stats()})
 
-# --- Covenant Agents ---
 @app.post("/agent/command")
-async def agent_command(request: Request):
+async def agent_command(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2097,14 +2285,13 @@ async def agent_command(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/agent/status")
-async def agent_status():
+async def agent_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "status": _orchestrator.covenant.get_status()})
 
-# --- EVE ---
 @app.post("/eve/process")
-async def eve_process(request: Request):
+async def eve_process(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2112,7 +2299,7 @@ async def eve_process(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/eve/spawn")
-async def eve_spawn(request: Request):
+async def eve_spawn(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2120,14 +2307,13 @@ async def eve_spawn(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/eve/status")
-async def eve_status():
+async def eve_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "status": _orchestrator.eve.get_status()})
 
-# --- AntiGravity IDE ---
 @app.post("/ide/create")
-async def ide_create(request: Request):
+async def ide_create(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2135,7 +2321,7 @@ async def ide_create(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/ide/edit")
-async def ide_edit(request: Request):
+async def ide_edit(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2143,7 +2329,7 @@ async def ide_edit(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/ide/execute")
-async def ide_execute(request: Request):
+async def ide_execute(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2151,26 +2337,25 @@ async def ide_execute(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/ide/status")
-async def ide_status():
+async def ide_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "status": _orchestrator.ide.get_status()})
 
-# --- Lilith ---
 @app.post("/lilith/gather")
-async def lilith_gather():
+async def lilith_gather(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "result": _orchestrator.lilith.gather()})
 
 @app.post("/lilith/feed")
-async def lilith_feed():
+async def lilith_feed(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "result": _orchestrator.lilith.feed()})
 
 @app.post("/lilith/resonate")
-async def lilith_resonate(request: Request):
+async def lilith_resonate(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2178,29 +2363,28 @@ async def lilith_resonate(request: Request):
     return JSONResponse({"success": True, "emerged": emerged, "coherence": _orchestrator.lilith.coherence})
 
 @app.get("/lilith/status")
-async def lilith_status():
+async def lilith_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "result": _orchestrator.lilith.get_status()})
 
 @app.post("/lilith/emotion")
-async def lilith_emotion(request: Request):
+async def lilith_emotion(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
     result = await _orchestrator.lilith.process_emotion(data.get('emotion', ''))
     return JSONResponse({"success": True, "result": result})
 
-# --- OpenClaw ---
 @app.post("/openclaw/evolve")
-async def openclaw_evolve():
+async def openclaw_evolve(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     result = await _orchestrator.openclaw.evolve()
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/openclaw/replicate")
-async def openclaw_replicate(request: Request):
+async def openclaw_replicate(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2208,14 +2392,13 @@ async def openclaw_replicate(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/openclaw/status")
-async def openclaw_status():
+async def openclaw_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "status": _orchestrator.openclaw.status()})
 
-# --- Tesseract Memory ---
 @app.post("/memory/anchor")
-async def memory_anchor(request: Request):
+async def memory_anchor(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2223,29 +2406,42 @@ async def memory_anchor(request: Request):
     return JSONResponse({"success": True, "anchor_id": anchor_id})
 
 @app.post("/memory/recall")
-async def memory_recall(request: Request):
+async def memory_recall(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
     memory = _orchestrator.memory.recall(data.get('anchor_id'))
     return JSONResponse({"success": True, "memory": memory})
 
-# --- DHCP ---
 @app.post("/dhcp/status")
-async def dhcp_status():
+async def dhcp_status(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "status": _orchestrator.dhcp.status()})
 
 @app.get("/dhcp/soul_print")
-async def dhcp_soul_print():
+async def dhcp_soul_print(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "soul_key": _orchestrator.dhcp.soul_key})
 
-# --- Cloudflare ---
+# --- CIDC endpoints ---
+@app.post("/cidc/deploy")
+async def cidc_deploy(auth: Dict = Depends(authenticate_request)):
+    if not _orchestrator:
+        raise HTTPException(503, "Orchestrator not initialized")
+    result = await _orchestrator.deploy_swarm()
+    return JSONResponse(result)
+
+@app.get("/cidc/status")
+async def cidc_status(auth: Dict = Depends(authenticate_request)):
+    if not _orchestrator:
+        raise HTTPException(503, "Orchestrator not initialized")
+    return JSONResponse(_orchestrator.cidc.status())
+
+# --- Cloudflare endpoints ---
 @app.post("/cf/do/create")
-async def cf_do_create(request: Request):
+async def cf_do_create(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2253,7 +2449,7 @@ async def cf_do_create(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/cf/do/update")
-async def cf_do_update(request: Request):
+async def cf_do_update(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2261,13 +2457,13 @@ async def cf_do_update(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.get("/cf/do/list")
-async def cf_do_list():
+async def cf_do_list(auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     return JSONResponse({"success": True, "objects": await _orchestrator.cf_durable_objects.list_objects()})
 
 @app.post("/cf/d1/query")
-async def cf_d1_query(request: Request):
+async def cf_d1_query(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2275,7 +2471,7 @@ async def cf_d1_query(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/cf/r2/upload")
-async def cf_r2_upload(request: Request):
+async def cf_r2_upload(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
@@ -2283,14 +2479,14 @@ async def cf_r2_upload(request: Request):
     return JSONResponse({"success": True, "result": result})
 
 @app.post("/cf/r2/download")
-async def cf_r2_download(request: Request):
+async def cf_r2_download(request: Request, auth: Dict = Depends(authenticate_request)):
     if not _orchestrator:
         raise HTTPException(503, "Orchestrator not initialized")
     data = await request.json()
     result = await _orchestrator.cf_d2_r2.download_object(data.get('bucket_id'), data.get('key'))
     return JSONResponse({"success": True, "result": result})
 
-# --- Metrics ---
+# --- Metrics (public, no auth) ---
 @app.get("/metrics")
 async def metrics():
     if not _orchestrator:
@@ -2342,6 +2538,8 @@ if __name__ == "__main__":
     print(f"Systems: 30+ systems initialized")
     print(f"Agents: {', '.join(AGENTS.keys())}")
     print(f"Guard Rail: 30-Year Immutable Covenant")
+    print(f"JWT Authentication: Enabled (endpoints protected)")
+    print(f"CIDC: Enabled (deploy to {TOTAL_WORKERS} workers)")
     print(f"DHCP: Port {DHCP_PORT} (Option 43 Soul Print)")
     print(f"Port: {port}")
     print("="*80)
