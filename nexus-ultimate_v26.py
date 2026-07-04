@@ -104,7 +104,7 @@ import autopep8
 # ============================================================================
 
 try:
-    import jwt as pyjwt
+    import jwt
     def jwt_encode(payload, secret, algorithm='HS256'):
         return pyjwt.encode(payload, secret, algorithm=algorithm)
     def jwt_decode(token, secret, algorithms=None):
