@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🌌 NEXUS COMPLETE ULTIMATE WORKER v25.0.0-UNIFIED
+🌌 NEXUS COMPLETE ULTIMATE WORKER v26.0.0-UNIFIED
 ═══════════════════════════════════════════════════════════════════════════
 ALL SYSTEMS INCLUDED (80 Workers):
 ├─ Mem Layer — L1-L5 Memory Tiering
@@ -62,7 +62,6 @@ import pickle
 import uuid
 import secrets
 import hmac
-import jwt
 import ast
 import inspect
 import importlib
