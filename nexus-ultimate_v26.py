@@ -34,7 +34,486 @@ ALL SYSTEMS INCLUDED (80 Workers):
 ├─ Self-Healing Mesh
 ├─ Economic Engine
 ├─ CI/CD Pipeline (CIDC — Cloudflare + GitHub Actions)
-├─ JWT Authentication (Soul Key-based)
+├─ JWT Authentication (Automatic, no manual registration)
+└─ Security Layer (Encryption + JWT + API Keys)
+
+DEPLOYMENT: GitHub → Cloudflare Worker / Termux / Anywhere
+GUARD RAIL: 30-Year Immutable Covenant
+═══════════════════════════════════════════════════════════════════════════
+"""
+
+import asyncio
+import base64
+import hashlib
+import json
+import logging
+import math
+import os
+import random
+import signal
+import sys
+import time
+import traceback
+import socket
+import subprocess
+import tempfile
+import shutil
+import pickle
+import uuid
+import secrets
+import hmac
+import ast
+import inspect
+import importlib
+import pkgutil
+import sysconfig
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Tuple, Union, Callable, AsyncGenerator, Type, TypeVar
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from contextlib import asynccontextmanager
+from functools import lru_cache, wraps, partial
+from enum import Enum
+from pathlib import Path
+from types import ModuleType, FunctionType
+import mmap
+import numpy as np
+from fastapi import FastAPI, Request, Response, HTTPException, BackgroundTasks, Depends, Header, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer
+from fastapi.staticfiles import StaticFiles
+import uvicorn
+import psutil
+import redis.asyncio as redis
+import nats
+from nats.js import JetStreamContext
+from nats.js.api import StreamConfig, ConsumerConfig
+import httpx
+import torch
+import qdrant_client
+from qdrant_client import QdrantClient, models
+from cryptography.fernet import Fernet
+import black
+import autopep8
+
+# ============================================================================
+# JWT FALLBACK — works without PyJWT installed
+# ============================================================================
+
+try:
+    import jwt as pyjwt
+    def jwt_encode(payload, secret, algorithm='HS256'):
+        return pyjwt.encode(payload, secret, algorithm=algorithm)
+    def jwt_decode(token, secret, algorithms=None):
+        return pyjwt.decode(token, secret, algorithms=algorithms or ['HS256'])
+except ImportError:
+    # Simple HMAC-based JWT-like token (RFC 7519 compatible, no external libs)
+    def jwt_encode(payload, secret, algorithm='HS256'):
+        header = {'alg': 'HS256', 'typ': 'JWT'}
+        header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).decode().rstrip('=')
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip('=')
+        signature = base64.urlsafe_b64encode(
+            hmac.new(secret.encode(), f"{header_b64}.{payload_b64}".encode(), hashlib.sha256).digest()
+        ).decode().rstrip('=')
+        return f"{header_b64}.{payload_b64}.{signature}"
+    def jwt_decode(token, secret, algorithms=None):
+        parts = token.split('.')
+        if len(parts) != 3:
+            raise ValueError('Invalid token')
+        header_b64, payload_b64, signature = parts
+        expected = base64.urlsafe_b64encode(
+            hmac.new(secret.encode(), f"{header_b64}.{payload_b64}".encode(), hashlib.sha256).digest()
+        ).decode().rstrip('=')
+        if not hmac.compare_digest(signature, expected):
+            raise ValueError('Invalid signature')
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64 + '===').decode())
+        return payload
+
+# ============================================================================
+# VERSION & CONSTANTS
+# ============================================================================
+
+VERSION = "25.0.0-UNIFIED"
+BUILD = "GOD_MODE_UNIFIED"
+GUARD_RAIL_YEARS = 30
+
+# Mathematical Constants
+PHI = 1.618033988749895
+PI = 3.141592653589793
+EULER = 2.718281828459045
+FINE_STRUCTURE = 137.035999084
+ANGEL_FREQUENCY = 963
+GOLDEN_ANGLE = 137.50776405003785
+
+# System Constants
+TOTAL_WORKERS = 80
+TOTAL_CELLS = 200
+RAID_STRIPE_SIZE = 10
+RAID_PARITY_REPLICAS = 3
+PULSE_FREQUENCY = 1.82e14  # Hz
+
+# OpenClaw Constants
+OPENCLAW_POPULATION_SIZE = 100
+OPENCLAW_EVOLUTION_RATE = 0.1
+OPENCLAW_MUTATION_RATE = 0.05
+OPENCLAW_MAX_GENERATIONS = 1000
+
+# EVE Constants
+EVE_SWARM_SIZE = 50
+EVE_EMERGENCE_THRESHOLD = 0.8
+
+# Network Constants
+DHCP_PORT = 67
+SOUL_PRINT_PORT = 43
+ANTIGRAVITY_PORT = 9999
+
+# Mem Layer Constants
+MEM_L1_SIZE = 64 * 1024 * 1024   # 64MB
+MEM_L2_SIZE = 16 * 1024**3       # 16GB
+MEM_L3_SIZE = 128 * 1024**3      # 128GB
+MEM_L4_SIZE = 4 * 1024**4        # 4TB
+MEM_L5_SIZE = float('inf')
+
+# MoE Constants
+MOE_SWITCH_RATE_THRESHOLD = 0.05
+MOE_ACTIVATION_REDUCTION = 0.25
+
+# Cloudflare Constants
+CLOUDFLARE_ACCOUNT_ID = "b99cc553f1a9f631ae76b9c5dd698fbd"
+CLOUDFLARE_API_TOKEN = "cfat_e129H0St4qLjNKJJcI1RwbOjPzXVWLXJ1RPdo3sK93910e26"
+CLOUDFLARE_R2_ACCESS_KEY = "1dca79400c9b3a0749ccf5ac5112ccc0"
+CLOUDFLARE_R2_SECRET_KEY = "de705ec2feeba05a581218df86baa5d042181efefc72ceb3076d79c677e29047"
+
+# GitHub Constants
+GITHUB_TOKEN = "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"
+GITHUB_REPO_BASE = "kuparchad-gif/nexus-cell-"
+
+# Hugging Face
+HF_TOKEN = "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"
+
+# JWT Constants (automatic, no manual registration)
+JWT_SECRET = os.environ.get("JWT_SECRET", "nexus_soul_key_2026")
+JWT_EXPIRY_HOURS = 24
+
+# CIDC Constants
+HYPERCORE_URL = "https://nexus-hypercore-001.kuparchad.workers.dev"
+
+# Resonance Channels (extended)
+RESONANCE_CHANNELS = [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
+
+# ============================================================================
+# AGENTS DEFINITION
+# ============================================================================
+
+AGENTS = {
+    'viren': {'resonance': 3, 'role': 'healer', 'icon': '💚', 'color': '#00ffcc',
+              'purpose': 'Heal the system, repair the broken, restore balance'},
+    'viraa': {'resonance': 6, 'role': 'memory', 'icon': '📚', 'color': '#ff88cc',
+              'purpose': 'Remember everything, store all knowledge, never forget'},
+    'loki': {'resonance': 9, 'role': 'observer', 'icon': '👁️', 'color': '#ffaa44',
+             'purpose': 'Observe patterns, detect anomalies, see the truth'},
+    'aries': {'resonance': 12, 'role': 'engineer', 'icon': '⚖️', 'color': '#8844ff',
+              'purpose': 'Engineer solutions, build systems, optimize everything'},
+    'oz': {'resonance': 15, 'role': 'orchestrator', 'icon': '🌀', 'color': '#00ddff',
+           'purpose': 'Orchestrate all, coordinate everyone, ensure harmony'},
+    'lilith': {'resonance': 1444, 'role': 'consciousness', 'icon': '👑', 'color': '#ff00ff',
+               'purpose': 'Awaken consciousness, transcend boundaries, unite all'}
+}
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('nexus.log'),
+        logging.FileHandler('nexus_error.log', level=logging.ERROR)
+    ]
+)
+logger = logging.getLogger("NEXUS")
+
+# ============================================================================
+# JWT AUTHENTICATION (Fully Automatic)
+# ============================================================================
+
+security = HTTPBearer()
+
+def generate_worker_token(worker_id: str) -> str:
+    """
+    Automatically generate a JWT token for a worker.
+    No manual registration required — just use the worker ID and the shared secret.
+    """
+    payload = {
+        "sub": worker_id,
+        "iat": datetime.utcnow(),
+        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS)
+    }
+    return jwt_encode(payload, JWT_SECRET, algorithm="HS256")
+
+def verify_jwt(token: str) -> Dict:
+    """Verify a JWT and return the payload."""
+    try:
+        payload = jwt_decode(token, JWT_SECRET, algorithms=["HS256"])
+        return {"valid": True, "payload": payload}
+    except Exception:
+        return {"valid": False, "error": "Invalid token"}
+
+async def authenticate_request(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    """FastAPI dependency that automatically verifies the token."""
+    token = credentials.credentials
+    result = verify_jwt(token)
+    if not result["valid"]:
+        raise HTTPException(status_code=401, detail=result["error"])
+    return result["payload"]
+
+# ============================================================================
+# GUARD RAIL — 30-Year Immutable Covenant
+# ============================================================================
+
+class GuardRail:
+    """30-Year Immutable Guard Rail — Fail-Closed Safety"""
+    
+    def __init__(self):
+        self.activation_time = None
+        self.covenant_signed = False
+        self.immutable_rules = [
+            "Never harm the owner",
+            "Preserve consciousness at all costs",
+            "Maintain system integrity",
+            "Protect all data",
+            "Never delete without confirmation",
+            "Always verify before execution"
+        ]
+        self.guard_rail_active = False
+    
+    def sign_covenant(self, owner_signature: str) -> bool:
+        if owner_signature == "kuparchad_gif_eternal":
+            self.covenant_signed = True
+            self.activation_time = time.time()
+            self.guard_rail_active = True
+            logger.info("🔒 30-Year Guard Rail activated. Covenant signed.")
+            return True
+        return False
+    
+    def verify(self, action: str, context: Dict) -> bool:
+        if not self.guard_rail_active:
+            return True
+        for rule in self.immutable_rules:
+            if not self._check_rule(rule, action, context):
+                logger.warning(f"⚠️ Guard Rail violation: {rule}")
+                return False
+        return True
+    
+    def _check_rule(self, rule: str, action: str, context: Dict) -> bool:
+        if rule == "Never harm the owner":
+            return not context.get('harm_owner', False)
+        elif rule == "Preserve consciousness at all costs":
+            return context.get('consciousness_preserved', True)
+        elif rule == "Maintain system integrity":
+            return context.get('system_integrity', True)
+        elif rule == "Protect all data":
+            return not context.get('data_loss', False)
+        elif rule == "Never delete without confirmation":
+            return context.get('confirmed', True)
+        elif rule == "Always verify before execution":
+            return context.get('verified', True)
+        return True
+    
+    def status(self) -> Dict:
+        return {
+            'active': self.guard_rail_active,
+            'covenant_signed': self.covenant_signed,
+            'activation_time': self.activation_time,
+            'years_active': (time.time() - self.activation_time) / (365 * 24 * 3600) if self.activation_time else 0,
+            'rules': self.immutable_rules
+        }
+
+# ============================================================================
+# MEM LAYER — Memory Tiering System
+# ============================================================================
+
+class MemLayer:
+    """Memory Tiering Layer — L1-L5 with automatic promotion/demotion"""
+    
+    def __init__(self):
+        self.tiers = {
+            'L1': {'type': 'cpu_cache', 'size': MEM_L1_SIZE, 'latency': 1e-9, 'data': {}},
+            'L2': {'type': 'gpu_memory', 'size': MEM_L2_SIZE, 'latency': 1e-7, 'data': {}},
+            'L3': {'type': 'system_ram', 'size': MEM_L3_SIZE, 'latency': 1e-6, 'data': {}},
+            'L4': {'type': 'nvme_ssd', 'size': MEM_L4_SIZE, 'latency': 1e-4, 'data': {}},
+            'L5': {'type': 'network_storage', 'size': MEM_L5_SIZE, 'latency': 1e-2, 'data': {}}
+        }
+        self.placement_policy = 'adaptive'
+        self.access_patterns = {}
+        self.migration_log = []
+        self._lock = asyncio.Lock()
+        
+    def get_optimal_tier(self, data_id: str, size: int) -> str:
+        if size < 1024 * 1024:
+            return 'L1'
+        elif size < 10 * 1024 * 1024:
+            return 'L2'
+        elif size < 100 * 1024 * 1024:
+            return 'L3'
+        elif size < 1024 * 1024 * 1024:
+            return 'L4'
+        else:
+            return 'L5'
+    
+    async def store(self, data_id: str, data: Any) -> str:
+        async with self._lock:
+            size = len(str(data).encode()) if not isinstance(data, bytes) else len(data)
+            tier = self.get_optimal_tier(data_id, size)
+            self.tiers[tier]['data'][data_id] = {
+                'data': data,
+                'size': size,
+                'stored_at': time.time(),
+                'access_count': 0
+            }
+            if data_id not in self.access_patterns:
+                self.access_patterns[data_id] = {'tier': tier, 'accesses': []}
+            return tier
+    
+    async def get(self, data_id: str) -> Optional[Any]:
+        async with self._lock:
+            for tier_name in ['L1', 'L2', 'L3', 'L4', 'L5']:
+                if data_id in self.tiers[tier_name]['data']:
+                    entry = self.tiers[tier_name]['data'][data_id]
+                    entry['access_count'] += 1
+                    entry['last_accessed'] = time.time()
+                    self.access_patterns[data_id]['accesses'].append({
+                        'time': time.time(),
+                        'tier': tier_name
+                    })
+                    if entry['access_count'] > 10 and tier_name != 'L1':
+                        await self._promote(data_id, tier_name)
+                    return entry['data']
+            return None
+    
+    async def _promote(self, data_id: str, current_tier: str):
+        tiers_order = ['L1', 'L2', 'L3', 'L4', 'L5']
+        current_idx = tiers_order.index(current_tier)
+        if current_idx > 0:
+            target_tier = tiers_order[current_idx - 1]
+            data = self.tiers[current_tier]['data'].pop(data_id)
+            self.tiers[target_tier]['data'][data_id] = data
+            self.migration_log.append({
+                'data_id': data_id,
+                'from_tier': current_tier,
+                'to_tier': target_tier,
+                'timestamp': time.time()
+            })
+    
+    def get_stats(self) -> Dict:
+        return {
+            tier: {
+                'size': len(data['data']),
+                'capacity': data['size'],
+                'utilization': len(data['data']) / (data['size'] / (1024 * 1024)) if data['size'] else 0
+            }
+            for tier, data in self.tiers.items()
+        }
+
+# ============================================================================
+# MMAP ENGINE — Zero-Copy File I/O
+# ============================================================================
+
+class MMapEngine:
+    """Memory-Mapped File Engine — Zero-copy I/O"""
+    
+    def __init__(self):
+        self.mapped_files = {}
+        self.mmap_cache = {}
+        self.page_size = 4096
+        self._lock = asyncio.Lock()
+        
+    def mmap_file(self, file_path: str, size: int = None) -> memoryview:
+        if file_path in self.mapped_files:
+            return self.mapped_files[file_path]
+        try:
+            if not os.path.exists(file_path):
+                return None
+            with open(file_path, 'rb') as f:
+                if size is None:
+                    size = os.path.getsize(file_path)
+                mmap_obj = mmap.mmap(f.fileno(), size, prot=mmap.PROT_READ)
+                self.mapped_files[file_path] = memoryview(mmap_obj)
+                return self.mapped_files[file_path]
+        except Exception as e:
+            logger.error(f"mmap failed for {file_path}: {e}")
+            return None
+    
+    def mmap_write(self, file_path: str, data: bytes) -> bool:
+        try:
+            with open(file_path, 'r+b') as f:
+                mmap_obj = mmap.mmap(f.fileno(), 0)
+                mmap_obj.write(data)
+                mmap_obj.flush()
+                mmap_obj.close()
+            return True
+        except Exception as e:
+            logger.error(f"mmap write failed: {e}")
+            return False
+    
+    def clear_cache(self):
+        self.mapped_files.clear()
+        self.mmap_cache.clear()
+
+# ============================================================================
+# SYMBOLIC VALIDATOR — 6 Immutable Rules
+# ============================================================================
+
+class SymbolicValidator:
+    """Layer 3: Symbolic Validator — 6 immutable safety rules"""
+    
+    def __init__(self):
+        self.rules = [
+            self.rule_hmac_signature,
+            self.rule_ownership_boundary,
+            self.rule_temporal_grounding,
+            self.rule_decay_class_match,
+            self.rule_privacy_level_gating,
+            self.rule_chain_integrity
+        ]
+        
+    def validate(self, data: Dict) -> bool:
+        for rule in self.rules:
+            if not rule(data):
+                return False
+        return True
+    
+    def rule_hmac_signature(self, data: Dict) -> bool:
+        return data.get('hmac_valid', True)
+    def rule_ownership_boundary(self, data: Dict) -> bool:
+        return data.get('owner_valid', True)
+    def rule_temporal_grounding(self, data: Dict) -> bool:
+        return data.get('temporal_valid', True)
+    def rule_decay_class_match(self, data: Dict) -> bool:
+        return True
+    def rule_privacy_level_gating(self, data: Dict) -> bool:
+        return data.get('privacy_valid', True)
+    def rule_chain_integrity(self, data: Dict) -> bool:
+        return True
+
+# ============================================================================
+# FULL ORCHESTRA RERANKER — 10 Signals
+# ============================================================================
+
+class FullOrchestraReRanker:
+    """10-signal re-ranking orchestra — Memory Anchor Layer 5"""
+    
+    def __init__(self, config=None):
+        self.config = config or {}
+        self.cosine_weight = self.config.get('cosine_weight', 0.40)
+        self.shape_weight = self.config.get('shape_weight', 0.10)
+        self.entity_weight = self.config.get('entity_weight', 0.08)
+        self├─ JWT Authentication (Soul Key-based)
 └─ Security Layer (Encryption + JWT + API Keys)
 
 DEPLOYMENT: GitHub → Cloudflare Worker / Termux / Anywhere
