@@ -1,0 +1,97 @@
+# wrangler.toml – Cloudflare Workers configuration
+# Deploys the Nexus Unified Worker (Python) with all integrated systems.
+# Requires Cloudflare Python Workers (beta) – compatibility_date ensures latest features.
+
+name = "nexus-unified-worker"
+main = "src/worker.py"          # Your merged Python entry point
+compatibility_date = "2025-05-01"  # Update to a recent date
+# Language must be "python" for Python Workers
+# (see: https://developers.cloudflare.com/workers/languages/python/)
+language = "python"
+
+# ============================================================================
+# Environment Variables – matched to the constants in your code
+# ============================================================================
+[vars]
+JWT_SECRET = "nexus_soul_key_2026"           # Override via secrets
+CLOUDFLARE_ACCOUNT_ID = "b99cc553f1a9f631ae76b9c5dd698fbd"
+
+HYPERCORE_URL = "https://nexus-hypercore-001.kuparchad.workers.dev"
+# You can also set PORT, HOST if needed (defaults: 8080, 0.0.0.0)
+
+# ============================================================================
+# Dependencies – read from pyproject.toml
+# ============================================================================
+# Cloudflare Workers Python environment uses a `requirements.txt` or inline deps.
+# We'll list the required packages here.
+# For production, you can also set `deps = ["-r requirements.txt"]` if you export a requirements file.
+# We'll keep them inline for clarity – they match pyproject.toml [project.dependencies].
+deps = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "numpy>=1.24.0",
+    "psutil>=5.9.0",
+    "redis>=4.5.0",
+    "nats-py>=2.2.0",
+    "httpx>=0.24.0",
+    "torch>=2.0.0",
+    "qdrant-client>=1.7.0",
+    "cryptography>=39.0.0",
+    "black>=23.0.0",
+    "autopep8>=2.0.0",
+    "pyjwt>=2.7.0",
+]
+
+# ============================================================================
+# Cloudflare Services Bindings
+# ============================================================================
+
+# D1 Database (SQLite) – for the CloudflareD1Manager
+[[d1_databases]]
+binding = "NEXUS_D1"      # Must match the code's internal reference (adjust if needed)
+database_name = "nexus-d1"
+database_id = "your-d1-database-id"  # Replace with actual ID after creation
+
+# R2 Bucket (object storage) – for the CloudflareD2R2Manager
+[[r2_buckets]]
+binding = "NEXUS_R2"
+bucket_name = "nexus-storage"
+
+# Durable Objects – for the CloudflareDurableObjectsManager
+[[durable_objects.bindings]]
+name = "NEXUS_DO"
+class_name = "NexusDurableObject"   # You'll need to define this class in your code
+
+# You may also add KV namespaces, Queues, etc. as needed.
+
+# ============================================================================
+# Observability & Logging
+# ============================================================================
+# Send logs to Cloudflare's logpush or use a service.
+# For local development, you can keep default.
+[observability]
+enabled = true
+logs = { tail = true }
+
+# ============================================================================
+# Deployment & Routing
+# ============================================================================
+# Routes: you can map subdomains or custom domains.
+# routes = ["nexus.example.com/*"]
+
+# Build settings – if you have a build step (not needed for Python)
+[build]
+command = "pip install -r requirements.txt"
+# You can generate requirements.txt from pyproject.toml via `pip install -e .` or `pip freeze`.
+# For simplicity, we rely on deps above; you can also use a `requirements.txt` and set:
+# command = "pip install -r requirements.txt"
+# Then deps = ["-r requirements.txt"]
+
+# ============================================================================
+# Environment-specific overrides (optional)
+# ============================================================================
+# [env.production]
+# vars = { JWT_SECRET = "prod_secret" }
+# [[env.production.d1_databases]]
+# binding = "NEXUS_D1"
+# database_name = "nexus-d1-prod"
