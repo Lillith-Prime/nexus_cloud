@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexus-unified-worker"
+version = "25.0.0"
+description = "Nexus Complete Ultimate Worker – all systems integrated"
+readme = "README.md"
+authors = [{name = "Kuparchad", email = "kuparchad@example.com"}]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "numpy>=1.24.0",
+    "psutil>=5.9.0",
+    "redis>=4.5.0",
+    "nats-py>=2.2.0",
+    "httpx>=0.24.0",
+    "torch>=2.0.0",
+    "qdrant-client>=1.7.0",
+    "cryptography>=39.0.0",
+    "black>=23.0.0",
+    "pyjwt>=2.7.0",          # optional – can be moved to extras
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "black",                 # already in main; dev may also need it
+    "isort",
+    "mypy",
+]
+# If you want to make torch optional (requires code changes):
+# ml = ["torch>=2.0.0"]
+# vector = ["qdrant-client>=1.7.0"]
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
+
+[tool.uvicorn]
+host = "0.0.0.0"
+port = 8080
+reload = false
+log_level = "info"
