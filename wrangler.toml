@@ -65,7 +65,7 @@ OWNER_SUPPORT_PRIORITY = "0.9"
 
 # === Quantum ===
 NUM_QUBITS = "8"
-QUANTUM_BACKEND = "simulator"
+QUANTUM_BACKEND = "emulator"
 SACRED_SOLID = "icosahedron"
 MAJORANA_MODE = "true"
 
