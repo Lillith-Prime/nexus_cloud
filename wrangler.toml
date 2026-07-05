@@ -4,7 +4,7 @@
 # ============================================================================
 
 name = "nexus-universal"
-main = "nexus_universal.py"
+main = "src/worker.py"
 compatibility_flags = ["python_workers"]
 compatibility_date = "2024-01-01"
 usage_model = "bundled"
