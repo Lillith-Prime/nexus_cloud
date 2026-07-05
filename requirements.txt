@@ -1,0 +1,8 @@
+nats-py
+prometheus-client
+scipy
+fastapi==0.104.1
+uvicorn==0.24.0
+httpx==0.25.1
+numpy==1.26.2
+python-multipart==0.0.6
