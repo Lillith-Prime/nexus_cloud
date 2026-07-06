@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nexus-unified-worker"
-version = "25.0.0"
-description = "Nexus Complete Ultimate Worker – all systems integrated"
+name = "aries-boot"
+version = "34.0.0"
+description = "Aries-Boot - The Orchestrator & Evolution Engine for Nexus Workers"
 readme = "README.md"
 authors = [{name = "Kuparchad", email = "kuparchad@example.com"}]
 license = {text = "MIT"}
@@ -14,7 +14,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.13"  # Corrected: Cloudflare uses Python 3.13
+requires-python = ">=3.13"
 
 dependencies = [
     "fastapi>=0.110.0",
@@ -88,69 +88,6 @@ line_length = 120
 
 [tool.mypy]
 python_version = "3.13"
-ignore_missing_imports = true
-
-[tool.uvicorn]
-host = "0.0.0.0"
-port = 8080
-reload = false
-log_level = "info"    "torch",
-    "transformers",
-    "sentence-transformers",
-    "langchain",
-    "langgraph",
-    "langchain-community",
-    "langchain-openai",
-    "langchain-anthropic",
-    "langchain-google-genai",
-    "openai",
-    "anthropic",
-    "google-generativeai",
-    "qdrant-client",
-    "weaviate-client",
-    "pinecone-client",
-    "chromadb",
-    "qiskit",
-    "pennylane",
-    "cirq",
-    "qutip",
-    "ray",
-    "dask",
-    "celery",
-    "opentelemetry-api",
-    "opentelemetry-sdk",
-    "opentelemetry-exporter-otlp",
-    "opentelemetry-instrumentation-fastapi",
-    "opentelemetry-instrumentation-httpx",
-    "prometheus-client",
-    "pytest",
-    "pytest-asyncio",
-    "isort",
-    "mypy"
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21.0",
-    "black",                 # already in main; dev may also need it
-    "isort",
-    "mypy",
-]
-# If you want to make torch optional (requires code changes):
-# ml = ["torch>=2.0.0"]
-# vector = ["qdrant-client>=1.7.0"]
-
-[tool.black]
-line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311']
-
-[tool.isort]
-profile = "black"
-line_length = 120
-
-[tool.mypy]
-python_version = "3.8"
 ignore_missing_imports = true
 
 [tool.uvicorn]
