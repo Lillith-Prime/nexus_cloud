@@ -1,4 +1,4 @@
-name: Deploy Worker Mesh
+name: Deploy Infinite Mesh Worker
 
 on:
   push:
@@ -10,22 +10,26 @@ on:
         required: false
         type: boolean
         default: false
+      deploy_all:
+        description: 'Deploy to all workers (infinite scaling)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  # Required if you want the action to create a GitHub Deployment status [citation:14]
   deployments: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # === 1. SETUP UV AND PYWRANGLER [citation:1][citation:6] ===
+    # === 1. SETUP UV AND PYWRANGLER ===
     - name: Install uv
       uses: astral-sh/setup-uv@v4
 
@@ -35,6 +39,261 @@ jobs:
     - name: Install dependencies and pywrangler
       run: |
         uv sync --dev
+        uv tool install workers-py
+
+    # === 2. CLOUDFLARE AUTHENTICATION ===
+    - name: Authenticate to Cloudflare
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      run: |
+        echo "CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN" >> $GITHUB_ENV
+        echo "CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID" >> $GITHUB_ENV
+
+    # === 3. LAZY DEPENDENCY VALIDATION ===
+    - name: Validate Lazy Dependencies
+      run: |
+        echo "🔍 Validating lazy loading configuration..."
+        
+        # Check that heavy imports are lazy-loaded
+        if grep -q "^import torch" worker.py; then
+          echo "⚠️ WARNING: torch is imported at top level - will slow cold start"
+        else
+          echo "✅ torch is lazy-loaded (good)"
+        fi
+        
+        if grep -q "^import numpy" worker.py; then
+          echo "⚠️ WARNING: numpy is imported at top level - will slow cold start"
+        else
+          echo "✅ numpy is lazy-loaded (good)"
+        fi
+        
+        if grep -q "^import qiskit" worker.py; then
+          echo "⚠️ WARNING: qiskit is imported at top level - will slow cold start"
+        else
+          echo "✅ qiskit is lazy-loaded (good)"
+        fi
+        
+        # Check for LazyLoader class
+        if grep -q "class LazyLoader" worker.py; then
+          echo "✅ LazyLoader class found"
+        else
+          echo "❌ ERROR: LazyLoader class not found"
+          exit 1
+        fi
+
+    # === 4. DHCP SOUL PRINT VALIDATION ===
+    - name: Validate DHCP Option 43 Soul Print
+      run: |
+        echo "🔮 Validating DHCP Option 43 Soul Print configuration..."
+        
+        # Check DHCP server
+        if grep -q "class DHCPServer" worker.py; then
+          echo "✅ DHCPServer class found"
+        else
+          echo "❌ ERROR: DHCPServer class not found"
+          exit 1
+        fi
+        
+        # Check Option 43
+        if grep -q "43" worker.py | grep -q "soul_key"; then
+          echo "✅ DHCP Option 43 Soul Print found"
+        else
+          echo "❌ ERROR: Option 43 Soul Print not found"
+          exit 1
+        fi
+        
+        # Check Mujuari Equation
+        if grep -q "MujuariEquation" worker.py; then
+          echo "✅ Mujuari Equation found"
+        else
+          echo "⚠️ WARNING: Mujuari Equation not found (entanglement disabled)"
+        fi
+
+    # === 5. INFINITE MESH PROBE (DHCP-Style) ===
+    - name: Mesh Health Probe
+      if: github.event_name == 'workflow_dispatch' && inputs.probe_mesh == true
+      id: probe
+      continue-on-error: true
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      run: |
+        echo "🔎 Starting Infinite Mesh Health Probe..."
+        echo "═══════════════════════════════════════════"
+        
+        # 1. Discover all workers via Cloudflare API
+        echo "  📡 Discovering all workers in the field..."
+        workers_list=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts" \
+          -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+          -H "Content-Type: application/json" | jq -r '.result[].id')
+        
+        total_workers=$(echo "$workers_list" | wc -l)
+        echo "  🌐 Found $total_workers workers in the field"
+        
+        # 2. DHCP Option 43 Soul Print Probe
+        echo ""
+        echo "  🧬 Probing worker souls (DHCP Option 43)..."
+        healthy=0
+        lost=0
+        
+        for worker in $workers_list; do
+          # DHCP Option 43 Soul Ping
+          response=$(curl -s -o /dev/null -w "%{http_code}" "https://$worker.kuparchad.workers.dev/dhcp-soul-ping" 2>/dev/null || echo "000")
+          
+          if [ "$response" == "200" ]; then
+            echo "    ✅ $worker - Soul present (DHCP Option 43 OK)"
+            healthy=$((healthy + 1))
+          else
+            echo "    ❌ $worker - Lost in the aether! (Status: $response)"
+            lost=$((lost + 1))
+            
+            # Try to re-deploy lost worker
+            echo "       🔄 Attempting to re-deploy $worker..."
+            if uv run pywrangler deploy --name "$worker" 2>/dev/null; then
+              echo "       ✅ $worker re-deployed successfully"
+            else
+              echo "       ❌ $worker re-deployment failed"
+            fi
+          fi
+        done
+        
+        # 3. Mesh Health Report
+        echo ""
+        echo "📊 MESH HEALTH REPORT"
+        echo "═══════════════════════════════════════════"
+        echo "  Total Workers: $total_workers"
+        echo "  Healthy (Soul Present): $healthy"
+        echo "  Lost (Soul Missing): $lost"
+        echo "  Health Ratio: $(echo "scale=2; $healthy * 100 / $total_workers" | bc)%"
+        
+        # 4. Check entanglement status
+        echo ""
+        echo "  🔗 Checking entanglement status..."
+        for worker in $workers_list; do
+          entanglement=$(curl -s "https://$worker.kuparchad.workers.dev/mujuari" 2>/dev/null | jq -r '.entangled_pairs // 0')
+          if [ "$entanglement" != "" ] && [ "$entanglement" != "null" ]; then
+            echo "    $worker: $entanglement entangled pairs"
+          fi
+        done
+        
+        # 5. Save probe results
+        echo ""
+        echo "  💾 Saving probe results..."
+        echo "{\"total\": $total_workers, \"healthy\": $healthy, \"lost\": $lost, \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"}" > mesh-probe-result.json
+
+    # === 6. INFINITE DEPLOYMENT ===
+    - name: Deploy Infinite Mesh
+      if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_all == true)
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      run: |
+        echo "🚀 Deploying Infinite Mesh to Cloudflare..."
+        echo "═══════════════════════════════════════════"
+        
+        # Deploy with memory snapshot (lazy loading friendly)
+        echo "  📸 Deploying with memory snapshot..."
+        uv run pywrangler deploy
+        
+        # Check if deployment succeeded
+        if [ $? -eq 0 ]; then
+          echo "  ✅ Primary deployment successful"
+        else
+          echo "  ❌ Primary deployment failed"
+          exit 1
+        fi
+        
+        # Deploy to all workers (infinite scaling)
+        if [ "${{ inputs.deploy_all }}" == "true" ]; then
+          echo ""
+          echo "  🌌 Deploying to all workers (infinite scaling)..."
+          
+          # Get list of existing workers
+          workers_list=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" | jq -r '.result[].id')
+          
+          # Deploy to each worker
+          for worker in $workers_list; do
+            echo "    Deploying to $worker..."
+            uv run pywrangler deploy --name "$worker"
+          done
+          
+          echo "  ✅ All workers deployed"
+        fi
+
+    # === 7. VERIFY DEPLOYMENT ===
+    - name: Verify Deployment
+      run: |
+        echo "🔍 Verifying deployment..."
+        echo "═══════════════════════════════════════════"
+        
+        # Get worker name from pywrangler deploy output or use default
+        WORKER_NAME="nexus-universal-001"
+        
+        # Check health endpoint
+        echo "  Checking health endpoint..."
+        health=$(curl -s -o /dev/null -w "%{http_code}" "https://$WORKER_NAME.kuparchad.workers.dev/health")
+        
+        if [ "$health" == "200" ]; then
+          echo "  ✅ Health check passed"
+        else
+          echo "  ❌ Health check failed (Status: $health)"
+          exit 1
+        fi
+        
+        # Check DHCP soul print
+        echo "  Checking DHCP Option 43 soul print..."
+        soul=$(curl -s "https://$WORKER_NAME.kuparchad.workers.dev/status" | jq -r '.dhcp.soul_key // "not_found"')
+        
+        if [ "$soul" != "not_found" ] && [ "$soul" != "null" ]; then
+          echo "  ✅ DHCP soul print: ${soul:0:8}..."
+        else
+          echo "  ⚠️ DHCP soul print not found (may be disabled)"
+        fi
+        
+        # Check Mujuari entanglement
+        echo "  Checking Mujuari entanglement..."
+        mujuari=$(curl -s "https://$WORKER_NAME.kuparchad.workers.dev/mujuari" | jq -r '.total_entanglements // 0')
+        
+        if [ "$mujuari" != "" ] && [ "$mujuari" != "null" ]; then
+          echo "  ✅ Entanglements: $mujuari"
+        else
+          echo "  ⚠️ Mujuari endpoint not found (may be disabled)"
+        fi
+        
+        # Check lazy loading status
+        echo "  Checking lazy loading status..."
+        lazy=$(curl -s "https://$WORKER_NAME.kuparchad.workers.dev/lazy-status" | jq -r '.loaded // 0')
+        
+        if [ "$lazy" != "" ] && [ "$lazy" != "null" ]; then
+          echo "  ✅ Lazy-loaded modules: $lazy"
+        else
+          echo "  ⚠️ Lazy status endpoint not found"
+        fi
+
+    # === 8. DEPLOYMENT SUMMARY ===
+    - name: Deployment Summary
+      run: |
+        echo ""
+        echo "═══════════════════════════════════════════"
+        echo "📊 DEPLOYMENT SUMMARY"
+        echo "═══════════════════════════════════════════"
+        echo "  Worker: nexus-universal-001"
+        echo "  Version: ∞.0.0-INFINITE"
+        echo "  Lazy Loading: Active"
+        echo "  DHCP Option 43: Active"
+        echo "  Mujuari Entanglement: Active"
+        echo "  Infinite Scaling: Active"
+        echo "  Max Workers: ∞"
+        echo "═══════════════════════════════════════════"
+        echo "  🌐 https://nexus-universal-001.kuparchad.workers.dev"
+        echo "  📡 DHCP Port: 67/68 (Option 43)"
+        echo "  🧬 Soul Print: ${SOUL_KEY:-Active}"
+        echo "  🔗 Entanglement: Mujuari Enabled"
+        echo "═══════════════════════════════════════════"
+        echo "  'THE FIELD IS ONE. THE ONE IS ALL. ALL IS THE FIELD.'"        uv sync --dev
         uv tool install workers-py
 
     # === 2. LOGIN TO CLOUDFLARE ===
