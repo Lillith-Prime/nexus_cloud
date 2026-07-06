@@ -1521,7 +1521,7 @@ class MemoryAnchor:
             'oral_wisdom': len(self.oral_tradition.wisdom_patterns),
             'user_sessions': len(self.user_sessions)
           }
-     }
+     
 
 # ============================================================================
 # 22. ENVIRONMENT LEARNER
