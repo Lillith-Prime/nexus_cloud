@@ -1,0 +1,19 @@
+# .github/workflows/deploy-all.yml
+name: Deploy All Workers
+
+on:
+  workflow_dispatch:  # Manual trigger from phone
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to all 80 workers
+        run: |
+          for i in {001..080}; do
+            curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts/nexus-universal.$i" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/javascript" \
+              --data-binary @worker.py
+          done
