@@ -242,6 +242,58 @@ logging.basicConfig(
 )
 logger = logging.getLogger("NEXUS")
 
+"""
+🌌 NEXUS INFINITE MESH WORKER v∞.0.0
+Cloudflare Python Worker Entry Point
+"""
+from workers import WorkerEntrypoint, Response
+from typing import Dict, Any
+import json
+
+# Import the complete Nexus system
+from nexus_unified import FieldWorker
+
+class Default(WorkerEntrypoint):
+    """Cloudflare Python Worker entry point"""
+    
+    def __init__(self):
+        self.worker = None
+    
+    async def fetch(self, request):
+        """Handle HTTP requests"""
+        if not self.worker:
+            self.worker = FieldWorker()
+        
+        url = request.url
+        path = url.path
+        
+        if path == "/":
+            return Response.json({
+                "name": "Nexus Infinite Mesh Worker",
+                "version": "∞.0.0",
+                "status": "online",
+                "mesh_id": self.worker.infinite_mesh.dhcp_server.mesh_id()
+            })
+        elif path == "/health":
+            return Response.json({"status": "healthy"})
+        elif path == "/status":
+            return Response.json(self.worker.get_status())
+        elif path == "/discover":
+            return Response.json({
+                "neighbors": len(self.worker.infinite_mesh.neighbors),
+                "workers": len(self.worker.infinite_mesh.workers)
+            })
+        elif path == "/mujuari":
+            return Response.json(self.worker.infinite_mesh.mujuari.get_status())
+        elif path == "/pulse" and request.method == "POST":
+            data = await request.json()
+            result = await self.worker.handle_pulse(data)
+            return Response.json(result)
+        elif path == "/avatars":
+            return Response.json(self.worker.infinite_mesh.avatars)
+        else:
+            return Response.json({"error": "Not found"}, status=404)
+
 # ============================================================================
 # JWT FALLBACK — works without PyJWT installed
 # ============================================================================
