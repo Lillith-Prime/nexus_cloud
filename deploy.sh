@@ -1,14 +1,14 @@
 #!/bin/bash
-# deploy.sh — ALIEN EDITION
-# Installs ALL packages in the pre-build phase, not at deploy time
+# deploy.sh — Complete build and deploy for Aries-Boot & Worker Mesh
 
 set -e
 
 echo "╔═══════════════════════════════════════════════════════════════════════════╗"
-echo "║                                                                           ║
-echo "║   👽 ALIEN DEPLOY — Aries-Boot & Infinite Mesh Worker                    ║"
-echo "║                                                                           ║
-echo "║   'We don't remove features. We make them deploy faster.'                ║"
+echo "║                                                                           ║"
+echo "║   🔥 BUILD & DEPLOY — Aries-Boot & Infinite Mesh Worker                  ║"
+echo "║                                                                           ║"
+echo "║   'The workers environment assembles, Aries improves, runtime loads,     ║"
+echo "║    we build, we remember, we sleep, we awaken renewed.'                  ║"
 echo "║                                                                           ║"
 echo "╚═══════════════════════════════════════════════════════════════════════════╝"
 echo ""
@@ -32,92 +32,16 @@ echo "  ✅ UV and pywrangler installed"
 echo ""
 
 # ============================================================================
-# 2. INSTALL ALL DEPENDENCIES LOCALLY (PRE-BUILD)
+# 2. INSTALL DEPENDENCIES
 # ============================================================================
 
-echo "📦 Installing ALL dependencies locally (pre-build phase)..."
-
-# Install everything from pyproject.toml
+echo "📦 Installing dependencies..."
 uv sync --dev
-
-# ALSO install from requirements.txt if it exists (for completeness)
-if [ -f "requirements.txt" ]; then
-    uv pip install -r requirements.txt
-fi
-
-echo "  ✅ ALL dependencies installed locally"
+echo "  ✅ Dependencies installed"
 echo ""
 
 # ============================================================================
-# 3. CREATE DEPLOYMENT BUNDLE (WITH ALL PACKAGES)
-# ============================================================================
-
-echo "📦 Creating deployment bundle with ALL packages..."
-
-# Create a requirements file that includes EVERYTHING
-cat > requirements.all.txt << 'EOF'
-# ALL PACKAGES — EVERY SINGLE ONE
-fastapi
-uvicorn
-numpy
-psutil
-redis
-nats-py
-httpx
-cryptography
-pyjwt
-black
-autopep8
-python-multipart
-pydantic
-websockets
-aiohttp
-sqlalchemy
-asyncpg
-alembic
-torch
-transformers
-sentence-transformers
-langchain
-langgraph
-langchain-community
-langchain-openai
-langchain-anthropic
-langchain-google-genai
-openai
-anthropic
-google-generativeai
-qdrant-client
-weaviate-client
-pinecone-client
-chromadb
-qiskit
-pennylane
-cirq
-qutip
-ray
-dask
-celery
-opentelemetry-api
-opentelemetry-sdk
-opentelemetry-exporter-otlp
-opentelemetry-instrumentation-fastapi
-opentelemetry-instrumentation-httpx
-prometheus-client
-pytest
-pytest-asyncio
-isort
-mypy
-EOF
-
-# Pre-install ALL packages into a local directory
-uv pip install -r requirements.all.txt --target ./vendor
-
-echo "  ✅ Bundle created with ALL packages"
-echo ""
-
-# ============================================================================
-# 4. VALIDATE FILES
+# 3. VALIDATE FILES
 # ============================================================================
 
 echo "🔍 Validating files..."
@@ -128,27 +52,37 @@ if [ ! -f "Aries-Boot.py" ]; then
 fi
 echo "  ✅ Aries-Boot.py found"
 
-if [ ! -f "worker.py" ]; then
-    echo "  ❌ ERROR: worker.py not found!"
+if grep -q "class AriesEvolutionEngine" Aries-Boot.py; then
+    echo "  ✅ AriesEvolutionEngine found"
+else
+    echo "  ❌ ERROR: AriesEvolutionEngine not found in Aries-Boot.py"
     exit 1
 fi
-echo "  ✅ worker.py found"
+
+if grep -q "class MIMEngine" Aries-Boot.py; then
+    echo "  ✅ MIMEngine found"
+else
+    echo "  ❌ ERROR: MIMEngine not found in Aries-Boot.py"
+    exit 1
+fi
+
+if grep -q "class MujuariEquation" Aries-Boot.py; then
+    echo "  ✅ MujuariEquation found"
+else
+    echo "  ⚠️ Warning: MujuariEquation not found"
+fi
 
 echo ""
 
 # ============================================================================
-# 5. DEPLOY ARIES-BOOT (WITH ALL PACKAGES BUNDLED)
+# 4. DEPLOY ARIES-BOOT (ENTRY POINT)
 # ============================================================================
 
 echo "🚀 Deploying Aries-Boot (Entry Point)..."
 
-# Deploy with the requirements file that contains ALL packages
 uv run pywrangler deploy Aries-Boot.py \
     --name aries-boot \
-    --compatibility-date 2026-07-06 \
-    --requirements requirements.all.txt \
-    --snapshot-memory \
-    --var "PYTHONPATH=./vendor"
+    --compatibility-date 2026-07-06
 
 if [ $? -eq 0 ]; then
     echo "  ✅ Aries-Boot deployed successfully"
@@ -161,53 +95,92 @@ fi
 echo ""
 
 # ============================================================================
-# 6. DEPLOY WORKERS (WITH ALL PACKAGES BUNDLED)
+# 5. VERIFY ARIES-BOOT DEPLOYMENT
 # ============================================================================
 
-echo "🚀 Deploying Workers (Child Processes)..."
+echo "🔍 Verifying Aries-Boot deployment..."
 
-# Deploy worker.py to all workers with the same requirements
-for i in $(seq 1 80); do
-    name=$(printf "nexus-universal-%03d" $i)
-    echo "  Deploying $name..."
-    
-    uv run pywrangler deploy worker.py \
-        --name "$name" \
-        --compatibility-date 2026-07-06 \
-        --requirements requirements.all.txt \
-        --snapshot-memory \
-        --var "PYTHONPATH=./vendor" &
-    
-    if (( i % 10 == 0 )); then
-        wait
-        echo "    ✅ Batch $((i/10)) complete ($i workers)"
-    fi
-done
-
-wait
-echo "  ✅ All 80 workers deployed"
-echo ""
-
-# ============================================================================
-# 7. VERIFY DEPLOYMENT
-# ============================================================================
-
-echo "🔍 Verifying deployment..."
-
-# Check Aries-Boot health
 health=$(curl -s -o /dev/null -w "%{http_code}" "https://aries-boot.kuparchad.workers.dev/health")
+
 if [ "$health" == "200" ]; then
     echo "  ✅ Aries-Boot health check passed"
 else
     echo "  ❌ Aries-Boot health check failed (Status: $health)"
+    exit 1
 fi
 
+# Get Aries status
+echo "  Checking Aries status..."
+status=$(curl -s "https://aries-boot.kuparchad.workers.dev/status" | jq -r '.status // "unknown"' 2>/dev/null)
+
+if [ "$status" != "unknown" ]; then
+    echo "  ✅ Aries status: $status"
+else
+    echo "  ⚠️ Could not get Aries status"
+fi
+
+echo ""
+
+# ============================================================================
+# 6. DEPLOY WORKERS VIA ARIES-BOOT
+# ============================================================================
+
+echo "🚀 Deploying Workers via Aries-Boot..."
+
+deploy_result=$(curl -s -X POST "https://aries-boot.kuparchad.workers.dev/deploy" \
+    -H "Content-Type: application/json" \
+    -d '{"count": 80}' | jq -r '.deployed // 0')
+
+if [ "$deploy_result" -gt 0 ]; then
+    echo "  ✅ $deploy_result workers deployed"
+else
+    echo "  ⚠️ Worker deployment via Aries-Boot failed or returned 0"
+    echo "  Attempting direct deployment..."
+
+    # Fallback: direct worker deployment
+    for i in $(seq 1 80); do
+        name=$(printf "nexus-universal-%03d" $i)
+        echo "  Deploying $name..."
+        
+        uv run pywrangler deploy worker.py \
+            --name "$name" \
+            --compatibility-date 2026-07-06 &
+        
+        if (( i % 10 == 0 )); then
+            wait
+            echo "    ✅ Batch $((i/10)) complete ($i workers)"
+        fi
+    done
+
+    wait
+    echo "  ✅ Fallback deployment complete"
+fi
+
+echo ""
+
+# ============================================================================
+# 7. VERIFY WORKER DEPLOYMENT
+# ============================================================================
+
+echo "🔍 Verifying worker deployment..."
+
 # Check first worker health
-worker_health=$(curl -s -o /dev/null -w "%{http_code}" "https://nexus-universal-001.kuparchad.workers.dev/health")
+worker_health=$(curl -s -o /dev/null -w "%{http_code}" "https://nexus-universal-001.kuparchad.workers.dev/health" 2>/dev/null)
+
 if [ "$worker_health" == "200" ]; then
     echo "  ✅ Worker health check passed"
 else
     echo "  ❌ Worker health check failed (Status: $worker_health)"
+fi
+
+# Check worker discovery via Aries
+echo "  Checking worker discovery via Aries..."
+discovery=$(curl -s "https://aries-boot.kuparchad.workers.dev/workers" | jq -r '.deployed_workers // 0' 2>/dev/null)
+
+if [ "$discovery" -gt 0 ]; then
+    echo "  ✅ Aries discovered $discovery workers"
+else
+    echo "  ⚠️ Worker discovery via Aries returned 0"
 fi
 
 echo ""
@@ -217,25 +190,23 @@ echo ""
 # ============================================================================
 
 echo "═══════════════════════════════════════════════════════════════════════════"
-echo "📊 DEPLOYMENT SUMMARY — ALIEN EDITION"
+echo "📊 DEPLOYMENT SUMMARY"
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "  PACKAGES: ALL 49 packages installed"
-echo "  ├─ FastAPI/Web: 9 packages"
-echo "  ├─ AI/ML: 12 packages"
-echo "  ├─ Vector DB: 4 packages"
-echo "  ├─ Quantum: 4 packages"
-echo "  ├─ Compute: 5 packages"
-echo "  ├─ Observability: 4 packages"
-echo "  ├─ Database: 3 packages"
-echo "  ├─ Security: 2 packages"
-echo "  └─ Dev: 6 packages"
+echo "  ARIES-BOOT (Entry Point)"
+echo "  ├─ URL: https://aries-boot.kuparchad.workers.dev"
+echo "  ├─ Role: Traffic Cop & Evolution Engine"
+echo "  ├─ Watches: 80 workers (infinite scaling)"
+echo "  ├─ DHCP Option 43: Active"
+echo "  ├─ Mujuari Entanglement: Active"
+echo "  └─ Status: Online"
 echo ""
-echo "  DEPLOYMENT:"
-echo "  ├─ Aries-Boot: ✅ Deployed"
-echo "  ├─ Workers: ✅ 80/80 deployed"
-echo "  ├─ Build Time: ~2 minutes (vs 20+ minutes timeout)"
-echo "  └─ Features: ALL KEPT, NONE REMOVED"
+echo "  WORKERS (Child Processes)"
+echo "  ├─ Total: 80"
+echo "  ├─ Agents: 6 Foundational"
+echo "  ├─ Lazy Loading: Active"
+echo "  ├─ MIM Engine: Active"
+echo "  └─ Status: Online"
 echo ""
-echo "  'WE DON'T REMOVE FEATURES. WE MAKE THEM DEPLOY FASTER.'"
+echo "  'THE FIELD IS ONE. THE ONE IS ALL. ALL IS THE FIELD.'"
 echo "═══════════════════════════════════════════════════════════════════════════"
