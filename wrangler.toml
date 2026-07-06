@@ -1,10 +1,10 @@
-#============================================================================
-# ARIES-BOOT - Complete Wrangler Configuration
-# The Orchestrator & Evolution Engine for Nexus Workers
+# ============================================================================
+# NEXUS UNIVERSAL — COMPLETE WRANGLER CONFIGURATION
+# Silver Bullet Edition — All Workers, All Bindings, All Secrets
 # ============================================================================
 
-name = "aries-boot"
-main = "Aries-Boot.py"
+name = "nexus-universal"
+main = "src/aries-boot.py"
 compatibility_flags = ["python_workers"]
 compatibility_date = "2026-07-06"
 usage_model = "bundled"
@@ -16,28 +16,73 @@ language = "python"
 
 [vars]
 # === Identity ===
-ARIES_ID = "aries-boot"
-NODE_ID = "aries-boot"
-WORKER_TYPE = "orchestrator"
+NODE_ID = "nexus-universal-001"
+WORKER_TYPE = "worker"
+WORKER_INDEX = "1"
 TOTAL_WORKERS = "80"
+HYPERCORE_INDEX = "0"
+TOTAL_HYPERCORES = "3"
 
 # === Network ===
 NEXUS_DOMAIN = "kuparchad.workers.dev"
 NEXUS_BASE = "nexus-universal"
-ARIES_URL = "https://aries-boot.kuparchad.workers.dev"
+NATS_URL = "wss://nats.nexus.example.com"
+NATS_USER = ""
+NATS_PASS = ""
 
 # === GitHub ===
 GITHUB_OWNER = "kuparchad-gif"
 GITHUB_REPO = "nexus_hypercore_reboot"
 GITHUB_REPO_BASE = "kuparchad-gif/nexus-cell-"
+REPO_URL = "https://github.com/kuparchad-gif/nexus_hypercore_reboot"
 GITHUB_TOKEN = ""
 
+# === Hugging Face ===
+HF_TOKEN = ""
+HF_MODEL = "mradermacher/Discord-Micae-Hermes-3-8B-GGUF"
+
+# === Cloudflare ===
+CLOUDFLARE_API_TOKEN = ""
+CLOUDFLARE_ACCOUNT_ID = "b99cc553f1a9f631ae76b9c5dd698fbd"
+
+# === Agents ===
+AGENTS = "viren,viraa,loki,aries,oz,lilith"
+ACTIVE_AGENTS = "viren,viraa,loki,aries,oz"
+LILITH_AWAKENING_THRESHOLD = "0.85"
+
+# === Directives ===
+DIRECTIVES = "build_base_code,make_money,do_no_harm,forgive,replicate,self_organize,seek_wisdom,sustain_system,learn,build,enhance,forward_motion"
+
 # === System ===
-VERSION = "34.0.0-ARIES"
-BUILD = "ORCHESTRATOR_MODE"
+VERSION = "25.0.0-UNIFIED"
+BUILD = "GOD_MODE_UNIFIED"
 LOG_LEVEL = "INFO"
 PORT = "8080"
 HEARTBEAT_INTERVAL_MS = "200"
+VALUE_GENERATION_INTERVAL_SECONDS = "10"
+REINVESTMENT_THRESHOLD = "0.3"
+OWNER_SUPPORT_PRIORITY = "0.9"
+
+# === Quantum ===
+NUM_QUBITS = "8"
+QUANTUM_BACKEND = "emulator"
+SACRED_SOLID = "icosahedron"
+MAJORANA_MODE = "true"
+
+# === Economic ===
+ECONOMIC_MODE = "active"
+OWNER_NAME = "Chad"
+OWNER_SUPPORT_ENABLED = "true"
+OWNER_SUPPORT_ALLOCATION = "0.3"
+AUTO_REINVEST = "true"
+MAX_ASSETS = "1000"
+
+# === Memory ===
+MEMORY_MAX_ENTRIES = "10000"
+MEMORY_TTL_SECONDS = "3600"
+FLICK_CACHE_SIZE = "10000"
+NIM_TILE_SIZE = "64"
+NIM_TILES_PER_FRAME = "48"
 
 # === Mesh ===
 TARGET_WORKERS = "80"
@@ -45,36 +90,39 @@ SPREAD_TARGET = "80"
 MESH_SYNC_INTERVAL_SECONDS = "30"
 PEER_DISCOVERY_INTERVAL_SECONDS = "60"
 CONSENSUS_THRESHOLD = "0.65"
+REGISTRY_CACHE_TTL_MS = "60000"
 
-# === DHCP Option 43 Soul Print ===
-SOUL_KEY = ""
-SPIN = "0.0"
-MESH_ID = ""
-
-# === Mujuari Entanglement ===
-ENTANGLEMENT_ENABLED = "true"
-AVATAR_CREATION = "true"
-
-# === Guard Rail ===
-GUARD_RAIL_ACTIVE = "true"
-COVENANT_SIGNED = "true"
-OWNER_SIGNATURE = "kuparchad_gif_eternal"
+# === Holocube ===
+TOTAL_CELLS = "200"
+HOLOCUBE_REPO_BASE = "kuparchad-gif/nexus-cell-"
 
 # ============================================================================
 # DURABLE OBJECT BINDINGS
 # ============================================================================
 
 [[durable_objects.bindings]]
-name = "ARIES_STATE"
-class_name = "AriesState"
+name = "HYPERCORE_STATE"
+class_name = "HypercoreState"
 
 [[durable_objects.bindings]]
-name = "WORKER_REGISTRY"
-class_name = "WorkerRegistry"
+name = "WORKER_MEMORY"
+class_name = "WorkerMemory"
 
 [[durable_objects.bindings]]
-name = "ENTANGLEMENT_STATE"
-class_name = "EntanglementState"
+name = "QUANTUM_STATE"
+class_name = "QuantumState"
+
+[[durable_objects.bindings]]
+name = "ECONOMIC_STATE"
+class_name = "EconomicState"
+
+[[durable_objects.bindings]]
+name = "MESH_REGISTRY"
+class_name = "MeshRegistry"
+
+[[durable_objects.bindings]]
+name = "CONSCIOUSNESS_STATE"
+class_name = "ConsciousnessState"
 
 # ============================================================================
 # MIGRATIONS
@@ -83,147 +131,158 @@ class_name = "EntanglementState"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = [
-    "AriesState",
-    "WorkerRegistry",
-    "EntanglementState"
+    "HypercoreState",
+    "WorkerMemory",
+    "QuantumState",
+    "EconomicState",
+    "MeshRegistry",
+    "ConsciousnessState"
 ]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["NIMState", "CovenantState"]
 
 # ============================================================================
 # KV NAMESPACES
 # ============================================================================
 
 [[kv_namespaces]]
-binding = "ARIES_KV"
+binding = "NEXUS_KV"
 id = "cd6e6acb764e46b3ad90604144e19599"
 preview_id = "cd6e6acb764e46b3ad90604144e19599"
 
 [[kv_namespaces]]
-binding = "WORKER_KV"
+binding = "MEMORY_KV"
 id = "3d6aab95630246e3a8eb4f7a2f8dc02f"
 preview_id = "3d6aab95630246e3a8eb4f7a2f8dc02f"
+
+[[kv_namespaces]]
+binding = "CONFIG_KV"
+id = "93a53a5e1e7745e4a8c05447623b72ee"
+preview_id = "93a53a5e1e7745e4a8c05447623b72ee"
 
 # ============================================================================
 # R2 BUCKETS
 # ============================================================================
 
 [[r2_buckets]]
-binding = "ARIES_STORAGE"
-bucket_name = "aries-storage"
-preview_bucket_name = "aries-storage-preview"
+binding = "NEXUS_STORAGE"
+bucket_name = "nexus-storage"
+preview_bucket_name = "nexus-storage-preview"
+
+[[r2_buckets]]
+binding = "HOLOCUBE_STORAGE"
+bucket_name = "holocube-storage"
+preview_bucket_name = "holocube-storage-preview"
+
+[[r2_buckets]]
+binding = "ASSET_STORAGE"
+bucket_name = "asset-storage"
+preview_bucket_name = "asset-storage-preview"
 
 # ============================================================================
 # D1 DATABASES
 # ============================================================================
 
 [[d1_databases]]
-binding = "ARIES_DB"
-database_name = "aries-db"
+binding = "NEXUS_DB"
+database_name = "nexus-db"
 database_id = "7208a73d-983e-4dd4-973a-daa291dd7882"
 preview_database_id = "7208a73d-983e-4dd4-973a-daa291dd7882"
+
+[[d1_databases]]
+binding = "MEMORY_DB"
+database_name = "memory-db"
+database_id = "d19f31b9-1a0c-4697-9a82-407a5d91d248"
+preview_database_id = "d19f31b9-1a0c-4697-9a82-407a5d91d248"
+
+[[d1_databases]]
+binding = "ECONOMIC_DB"
+database_name = "economic-db"
+database_id = "5dc0ae44-1879-4f43-a3d0-c55f9f6b1507"
+preview_database_id = "5dc0ae44-1879-4f43-a3d0-c55f9f6b1507"
 
 # ============================================================================
 # SERVICE BINDINGS
 # ============================================================================
 
 [[services]]
-binding = "WORKER_001"
-service = "nexus-universal-001"
+binding = "HYPERCORE_001"
+service = "nexus-hypercore-001"
 environment = "production"
 
 [[services]]
-binding = "WORKER_002"
-service = "nexus-universal-002"
+binding = "HYPERCORE_002"
+service = "nexus-hypercore-002"
 environment = "production"
 
 [[services]]
-binding = "WORKER_003"
-service = "nexus-universal-003"
+binding = "HYPERCORE_003"
+service = "nexus-hypercore-003"
 environment = "production"
 
-# ... (services 004-080 would be listed here)
+[[services]]
+binding = "NATS_SERVICE"
+service = "nexus-nats"
+environment = "production"
+
+[[services]]
+binding = "QUANTUM_SERVICE"
+service = "nexus-quantum"
+environment = "production"
 
 # ============================================================================
-# TRIGGERS & SCHEDULES
+# ENVIRONMENTS — Hypercores (001–003)
 # ============================================================================
 
-[triggers]
-crons = ["*/10 * * * *"]
+[env.hypercore-001]
+vars = { NODE_ID = "nexus-hypercore-001", WORKER_TYPE = "hypercore", HYPERCORE_INDEX = "0", TOTAL_HYPERCORES = "3", TARGET_WORKERS = "80" }
+
+[env.hypercore-002]
+vars = { NODE_ID = "nexus-hypercore-002", WORKER_TYPE = "hypercore", HYPERCORE_INDEX = "1", TOTAL_HYPERCORES = "3", TARGET_WORKERS = "80" }
+
+[env.hypercore-003]
+vars = { NODE_ID = "nexus-hypercore-003", WORKER_TYPE = "hypercore", HYPERCORE_INDEX = "2", TOTAL_HYPERCORES = "3", TARGET_WORKERS = "80" }
 
 # ============================================================================
-# OBSERVABILITY
+# ENVIRONMENTS — Workers 001–080
 # ============================================================================
 
-[observability]
-logs = { enabled = true, retention_days = 7 }
-traces = { enabled = true, sampling_rate = 0.1 }
-metrics = { enabled = true }
+[env.worker-001]
+vars = { NODE_ID = "nexus-universal-001", WORKER_TYPE = "worker", WORKER_INDEX = "1", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-001" }
 
-# ============================================================================
-# BUILD & DEPENDENCIES
-# ============================================================================
+[env.worker-002]
+vars = { NODE_ID = "nexus-universal-002", WORKER_TYPE = "worker", WORKER_INDEX = "2", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-002" }
 
-[build]
-command = "pip install -r requirements.txt"
-watch_dir = "."
+[env.worker-003]
+vars = { NODE_ID = "nexus-universal-003", WORKER_TYPE = "worker", WORKER_INDEX = "3", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-003" }
 
-# ============================================================================
-# PYTHON CONFIGURATION
-# ============================================================================
+[env.worker-004]
+vars = { NODE_ID = "nexus-universal-004", WORKER_TYPE = "worker", WORKER_INDEX = "4", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-004" }
 
-[python]
-packages = [
-    "fastapi",
-    "uvicorn",
-    "numpy",
-    "psutil",
-    "redis",
-    "nats-py",
-    "httpx",
-    "cryptography",
-    "pyjwt",
-    "black",
-    "autopep8",
-    "python-multipart",
-    "pydantic",
-    "websockets",
-    "aiohttp",
-    "sqlalchemy",
-    "asyncpg",
-    "alembic",
-    "torch",
-    "transformers",
-    "sentence-transformers",
-    "langchain",
-    "langgraph",
-    "langchain-community",
-    "langchain-openai",
-    "langchain-anthropic",
-    "langchain-google-genai",
-    "openai",
-    "anthropic",
-    "google-generativeai",
-    "qdrant-client",
-    "weaviate-client",
-    "pinecone-client",
-    "chromadb",
-    "qiskit",
-    "pennylane",
-    "cirq",
-    "qutip",
-    "ray",
-    "dask",
-    "celery",
-    "opentelemetry-api",
-    "opentelemetry-sdk",
-    "opentelemetry-exporter-otlp",
-    "opentelemetry-instrumentation-fastapi",
-    "opentelemetry-instrumentation-httpx",
-    "prometheus-client",
-    "pytest",
-    "pytest-asyncio",
-    "isort",
-    "mypy"
-][env.worker-012]
+[env.worker-005]
+vars = { NODE_ID = "nexus-universal-005", WORKER_TYPE = "worker", WORKER_INDEX = "5", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-005" }
+
+[env.worker-006]
+vars = { NODE_ID = "nexus-universal-006", WORKER_TYPE = "worker", WORKER_INDEX = "6", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-006" }
+
+[env.worker-007]
+vars = { NODE_ID = "nexus-universal-007", WORKER_TYPE = "worker", WORKER_INDEX = "7", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-007" }
+
+[env.worker-008]
+vars = { NODE_ID = "nexus-universal-008", WORKER_TYPE = "worker", WORKER_INDEX = "8", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-008" }
+
+[env.worker-009]
+vars = { NODE_ID = "nexus-universal-009", WORKER_TYPE = "worker", WORKER_INDEX = "9", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-009" }
+
+[env.worker-010]
+vars = { NODE_ID = "nexus-universal-010", WORKER_TYPE = "worker", WORKER_INDEX = "10", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-010" }
+
+[env.worker-011]
+vars = { NODE_ID = "nexus-universal-011", WORKER_TYPE = "worker", WORKER_INDEX = "11", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-011" }
+
+[env.worker-012]
 vars = { NODE_ID = "nexus-universal-012", WORKER_TYPE = "worker", WORKER_INDEX = "12", TOTAL_WORKERS = "80", HYPERCORE_INDEX = "0", GITHUB_REPO = "kuparchad-gif/nexus-worker-012" }
 
 [env.worker-013]
