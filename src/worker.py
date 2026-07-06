@@ -1520,9 +1520,8 @@ class MemoryAnchor:
             'validator_audit': len(self.validator.audit_log),
             'oral_wisdom': len(self.oral_tradition.wisdom_patterns),
             'user_sessions': len(self.user_sessions)
-        }
-      
-  }
+          }
+     }
 
 # ============================================================================
 # 22. ENVIRONMENT LEARNER
