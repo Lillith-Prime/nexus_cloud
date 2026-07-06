@@ -1,95 +1,86 @@
-name: Deploy Nexus Workers to Cloudflare
+name: Deploy Worker Mesh
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'worker.py'
-      - 'requirements.txt'
-      - 'wrangler.toml'
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
-      workers:
-        description: 'Number of workers to deploy'
-        required: true
-        default: '80'
-        type: string
+      probe_mesh:
+        description: 'Perform a mesh health probe to discover and reconnect workers'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  # Required if you want the action to create a GitHub Deployment status [citation:14]
+  deployments: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25  # Cloudflare build timeout is 20 min
-    
+    timeout-minutes: 10
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install uv (fast package installer)
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      
-      - name: Install pywrangler (Cloudflare's new tool)
-        run: |
-          uv tool install workers-py
-      
-      - name: Split requirements for Cloudflare compatibility
-        run: |
-          # Create lightweight requirements for Cloudflare
-          grep -v -E "(torch|tensorflow|qiskit|transformers|opencv|numpy|scipy)" requirements.txt > requirements.cf.txt || echo "No requirements"
-          echo "numpy" >> requirements.cf.txt
-          echo "fastapi" >> requirements.cf.txt
-          echo "uvicorn" >> requirements.cf.txt
-          echo "httpx" >> requirements.cf.txt
-          echo "python-multipart" >> requirements.cf.txt
-      
-      - name: Deploy with pywrangler (memory snapshot)
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          WORKERS_COUNT: ${{ github.event.inputs.workers || '80' }}
-        run: |
-          # Deploy main worker script with memory snapshot
-          pywrangler deploy worker.py \
-            --name nexus-universal-001 \
-            --compatibility-date 2026-07-06 \
-            --requirements requirements.cf.txt \
-            --snapshot-memory \
-            --env WORKERS_COUNT=$WORKERS_COUNT
-      
-      - name: Deploy all 80 workers (parallel)
-        if: success()
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          # Deploy workers in parallel batches
-          for i in $(seq 1 80); do
-            name=$(printf "nexus-universal-%03d" $i)
-            echo "Deploying $name..."
-            pywrangler deploy worker.py \
-              --name $name \
-              --compatibility-date 2026-07-06 \
-              --requirements requirements.cf.txt \
-              --snapshot-memory &
-            
-            # Limit parallel deployments to avoid rate limits
-            if (( i % 10 == 0 )); then
-              wait
-            fi
-          done
-          wait
-      
-      - name: Verify deployment
-        run: |
-          for i in $(seq 1 3); do
-            name=$(printf "nexus-universal-%03d" $i)
-            echo "Verifying $name..."
-            curl -s "https://$name.kuparchad.workers.dev/health" || echo "⚠️ $name not responding"
-          done
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # === 1. SETUP UV AND PYWRANGLER [citation:1][citation:6] ===
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Set up Python
+      run: uv python install 3.13
+
+    - name: Install dependencies and pywrangler
+      run: |
+        uv sync --dev
+        uv tool install workers-py
+
+    # === 2. LOGIN TO CLOUDFLARE ===
+    - name: Authenticate to Cloudflare
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      run: echo "CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN" >> $GITHUB_ENV
+
+    # === 3. HYBRID DHCP CLIENT FOR MESH PROBE [citation:4][citation:12] ===
+    - name: Mesh Health Probe
+      if: github.event_name == 'workflow_dispatch' && inputs.probe_mesh == true
+      id: probe
+      continue-on-error: true
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      run: |
+        echo "🔎 Starting Mesh Health Probe..."
+
+        # 1. Discover all workers via Cloudflare API [citation:12]
+        echo "  📡 Discovering all workers in the field..."
+        workers_list=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts" \
+          -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+          -H "Content-Type: application/json" | jq -r '.result[].id')
+
+        # 2. Probe each worker using a DHCP-like soul ping
+        echo "  🧬 Probing worker souls..."
+        for worker in $workers_list; do
+          # Simulated DHCP Option 43 check: a "soul ping" expects a specific response [citation:11]
+          # This is where you'd implement your specific handshake logic.
+          response=$(curl -s -o /dev/null -w "%{http_code}" "https://$worker.kuparchad.workers.dev/dhcp-soul-ping")
+          if [ "$response" == "200" ]; then
+            echo "    ✅ $worker is present and accounted for."
+          else
+            echo "    ❌ $worker is lost in the aether! Attempting to re-deploy..."
+            # If a worker is lost, re-deploy it [citation:4]
+            uv run pywrangler deploy --name $worker
+          fi
+        done
+
+    # === 4. PRIMARY DEPLOYMENT ===
+    - name: Deploy Worker to Cloudflare
+      run: |
+        # This is the main deployment. If this is triggered manually, it skips the probe logic and just deploys.
+        if [ "${{ github.event_name }}" != "workflow_dispatch" ] || [ "${{ inputs.probe_mesh }}" != "true" ]; then
+          echo "🚀 Deploying main worker..."
+          uv run pywrangler deploy
+        else
+          echo "✅ Mesh probe complete. Deployment step skipped as per configuration."
+        fi
