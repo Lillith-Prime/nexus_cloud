@@ -150,17 +150,16 @@ new_sqlite_classes = ["NIMState", "CovenantState"]
 [[kv_namespaces]]
 binding = "NEXUS_KV"
 id = "nexus-kv"
-preview_id = "nexus-kv-preview"
-
+preview_id = "cd6e6acb764e46b3ad90604144e19599"
 [[kv_namespaces]]
 binding = "MEMORY_KV"
 id = "memory-kv"
-preview_id = "memory-kv-preview"
+preview_id = "3d6aab95630246e3a8eb4f7a2f8dc02f"
 
 [[kv_namespaces]]
 binding = "CONFIG_KV"
 id = "config-kv"
-preview_id = "config-kv-preview"
+preview_id = "93a53a5e1e7745e4a8c05447623b72ee"
 
 # ============================================================================
 # R2 BUCKETS
