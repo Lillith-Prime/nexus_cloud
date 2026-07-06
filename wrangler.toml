@@ -188,20 +188,20 @@ preview_bucket_name = "asset-storage-preview"
 [[d1_databases]]
 binding = "NEXUS_DB"
 database_name = "nexus-db"
-database_id = "nexus-db"
-preview_database_id = "nexus-db-preview"
+database_id = "7208a73d-983e-4dd4-973a-daa291dd7882"
+preview_database_id = "7208a73d-983e-4dd4-973a-daa291dd7882"
 
 [[d1_databases]]
 binding = "MEMORY_DB"
 database_name = "memory-db"
-database_id = "memory-db"
-preview_database_id = "memory-db-preview"
+database_id = "d19f31b9-1a0c-4697-9a82-407a5d91d248"
+preview_database_id = "d19f31b9-1a0c-4697-9a82-407a5d91d248"
 
 [[d1_databases]]
 binding = "ECONOMIC_DB"
 database_name = "economic-db"
-database_id = "economic-db"
-preview_database_id = "economic-db-preview"
+database_id = "5dc0ae44-1879-4f43-a3d0-c55f9f6b1507"
+preview_database_id = "5dc0ae44-1879-4f43-a3d0-c55f9f6b1507"
 
 # ============================================================================
 # SERVICE BINDINGS
