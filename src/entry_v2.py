@@ -389,8 +389,7 @@ logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('nexus.log'),
-        logging.FileHandler('nexus_error.log', level=logging.ERROR)
+        logging.FileHandler('nexus_error.log', level=logging.ERROR)  # ← THIS IS THE PROBLEM
     ]
 )
 logger = logging.getLogger("NEXUS")
