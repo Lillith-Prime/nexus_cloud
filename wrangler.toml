@@ -10,6 +10,9 @@ compatibility_date = "2026-07-06"
 usage_model = "bundled"
 language = "python"
 
+[wasm_modules]
+holographic_db = "src/holographic_db.wasm"
+
 # ============================================================================
 # WORKER VARIABLES
 # ============================================================================
