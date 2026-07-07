@@ -4,7 +4,7 @@
 # ============================================================================
 
 name = "nexus-universal"
-main = "src/aries-boot.py"
+main = "src/entry_v2.py"
 compatibility_flags = ["python_workers"]
 compatibility_date = "2026-07-06"
 usage_model = "bundled"
