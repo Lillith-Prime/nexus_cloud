@@ -531,44 +531,27 @@ uv sync --no-dev --no-cache
 # ============================================================================
 
 [python]
-packages = [
-    # ===== CORE — Everything Cloudflare supports =====
+dependencies = [
     "numpy",
     "fastapi",
     "httpx",
     "pydantic",
-    "pydantic-core",
-    "starlette",
-    "anyio",
     "python-multipart",
     "python-dotenv",
+    "uvicorn",
+    "anyio",
+    "starlette",
+    "h11",
+    "httpcore",
+    "sniffio",
+    "idna",
+    "certifi",
+    "charset-normalizer",
     "pyyaml",
     "packaging",
     "attrs",
-    "certifi",
-    "charset-normalizer",
-    "idna",
-    "sniffio",
-    "h11",
-    "httpcore",
-    
-    # ===== AI — LangChain + OpenAI (pure Python) =====
-    "langchain",
-    "langchain-core",
-    "langchain-openai",
-    "langsmith",
-    "openai",
-    "tiktoken",
-    "distro",
-    
-    # ===== HTTP — aiohttp for mesh communication =====
-    "aiohttp",
-    "multidict",
-    "frozenlist",
-    "aiosignal",
-    
-    # ===== UTILITY — Regex, JSON, etc. =====
-    "regex",
-    "jsonpatch",
-    "jsonpointer",
+    "typing-extensions",
+    "typing-inspection",
+    "annotated-types",
+    "annotated-doc"
 ]
