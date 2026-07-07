@@ -17,50 +17,45 @@ classifiers = [
 requires-python = "==3.13.*"  # FIXED: Exact version
 
 dependencies = [
-    # ===== SCIENTIFIC — ALL WORK =====
+    # ===== CORE — Everything Cloudflare supports =====
     "numpy",
-    "scipy",
-    "pandas",
-    "scikit-learn",
-    "matplotlib",
-    "networkx",
-    "sympy",
-    
-    # ===== WEB — ALL WORK =====
     "fastapi",
-    "uvicorn",
     "httpx",
-    "aiohttp",
-    "requests",
     "pydantic",
+    "pydantic-core",
     "starlette",
     "anyio",
-    "websockets",
     "python-multipart",
     "python-dotenv",
+    "pyyaml",
+    "packaging",
+    "attrs",
+    "certifi",
+    "charset-normalizer",
+    "idna",
+    "sniffio",
+    "h11",
+    "httpcore",
     
-    # ===== AI — WORK =====
-    "openai",
+    # ===== AI — LangChain + OpenAI (pure Python) =====
     "langchain",
     "langchain-core",
     "langchain-openai",
     "langsmith",
+    "openai",
+    "tiktoken",
+    "distro",
     
-    # ===== IMAGE — WORK =====
-    "opencv-python",
-    "pillow",
+    # ===== HTTP — aiohttp for mesh communication =====
+    "aiohttp",
+    "multidict",
+    "frozenlist",
+    "aiosignal",
     
-    # ===== UTILITY — WORK =====
-    "pyyaml",
+    # ===== UTILITY — Regex, JSON, etc. =====
     "regex",
-    "attrs",
-    "certifi",
-    "packaging",
-    "python-dateutil",
-    "pytz",
-    "six",
-    "idna",
-    "charset-normalizer",
+    "jsonpatch",
+    "jsonpointer",
 ]
 
 [tool.pywrangler]
