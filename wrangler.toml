@@ -532,90 +532,42 @@ uv sync --no-dev --no-cache
 
 [python]
 packages = [
-    # ===== SCIENTIFIC — WORK IN WASM =====
+    # ===== CORE — Everything Cloudflare supports =====
     "numpy",
-    "scipy",
-    "pandas",
-    "scikit-learn",
-    "matplotlib",
-    "networkx",
-    "sympy",
-    "statsmodels",
-    
-    # ===== WEB — WORK IN WASM =====
     "fastapi",
-    "uvicorn",
     "httpx",
-    "aiohttp",
-    "requests",
     "pydantic",
+    "pydantic-core",
     "starlette",
     "anyio",
-    "websockets",
     "python-multipart",
     "python-dotenv",
+    "pyyaml",
+    "packaging",
+    "attrs",
+    "certifi",
+    "charset-normalizer",
+    "idna",
+    "sniffio",
+    "h11",
+    "httpcore",
     
-    # ===== AI — WORK IN WASM =====
-    "openai",
+    # ===== AI — LangChain + OpenAI (pure Python) =====
     "langchain",
     "langchain-core",
     "langchain-openai",
     "langsmith",
+    "openai",
+    "tiktoken",
+    "distro",
     
-    # ===== IMAGE — WORK IN WASM =====
-    "opencv-python",
-    "pillow",
+    # ===== HTTP — aiohttp for mesh communication =====
+    "aiohttp",
+    "multidict",
+    "frozenlist",
+    "aiosignal",
     
-    # ===== UTILITY — WORK IN WASM =====
-    "pyyaml",
+    # ===== UTILITY — Regex, JSON, etc. =====
     "regex",
-    "attrs",
-    "certifi",
-    "packaging",
-    "python-dateutil",
-    "pytz",
-    "six",
-    "idna",
-    "charset-normalizer",
-    "black",
-    "autopep8",
-    "isort",
-    "mypy",
-    "pytest",
-    "pytest-asyncio",
-]
-
-# ============================================================================
-# DO NOT INCLUDE THESE (DO NOT WORK IN WASM)
-# ============================================================================
-# psutil — use C++ WASM via FFI
-# redis — no WASM build
-# nats-py — no WASM build
-# cryptography — inconsistent in WASM
-# pyjwt — inconsistent in WASM
-# sqlalchemy — no WASM build
-# asyncpg — no WASM build
-# alembic — pulls sqlalchemy
-# torch — no WASM build
-# transformers — no WASM build
-# sentence-transformers — no WASM build
-# langgraph — not in Pyodide
-# langchain-community — not in Pyodide
-# langchain-anthropic — not in Pyodide
-# langchain-google-genai — not in Pyodide
-# anthropic — not in Pyodide
-# google-generativeai — not in Pyodide
-# qdrant-client — not in Pyodide
-# weaviate-client — not in Pyodide
-# pinecone-client — not in Pyodide
-# chromadb — not in Pyodide
-# qiskit — no WASM build
-# pennylane — no WASM build
-# cirq — no WASM build
-# qutip — no WASM build
-# ray — no WASM build
-# dask — no WASM build
-# celery — no WASM build
-# opentelemetry-* — not in Pyodide
-# prometheus-client — no WASM build
-# ============================================================================
+    "jsonpatch",
+    "jsonpointer",
