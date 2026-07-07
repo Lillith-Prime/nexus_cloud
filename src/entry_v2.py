@@ -384,19 +384,24 @@ class LazyLoader:
 # LOGGING
 # ============================================================================
 
+import logging
+import sys
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
     handlers=[
-    logging.StreamHandler(sys.stdout),
-    logging.FileHandler('nexus.log'),
-    logging.FileHandler('nexus_error.log')
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('nexus.log'),
+        logging.FileHandler('nexus_error.log')
     ]
+)
 
-    for h in logging.getLogger().handlers:
+# Fix: This needs to be OUTSIDE the basicConfig call
+for h in logging.getLogger().handlers:
     if hasattr(h, 'baseFilename') and 'error' in h.baseFilename:
         h.setLevel(logging.ERROR)
-)
+
 logger = logging.getLogger("NEXUS")
 
 # ============================================================================
