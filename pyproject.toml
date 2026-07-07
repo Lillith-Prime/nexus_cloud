@@ -67,6 +67,18 @@ dependencies = [
     # REMOVED: pytest, mypy, isort (moved to dev)
 ]
 
+[tool.pywrangler]
+entry = "src/entry.py"
+compatibility_date = "2026-06-22"
+compatibility_flags = ["python_workers"]
+
+[tool.pywrangler.assets]
+include = [
+    "src/*.wasm",
+    "src/*.js",
+]
+
+
 # --- Pin torch to the custom index ---
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
