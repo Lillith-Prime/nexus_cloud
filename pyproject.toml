@@ -35,7 +35,7 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "asyncpg>=0.29.0",
     "alembic>=1.13.0",
-    "torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu",
+    "torch>=2.0.0",
     "transformers>=4.30.0",
     "sentence-transformers>=2.2.0",
     "langchain>=0.1.8",
@@ -69,6 +69,9 @@ dependencies = [
     "isort>=5.13.0",
     "mypy>=1.8.0",
 ]
+
+[tool.uv.sources]
+torch = { index = "https://download.pytorch.org/whl/cpu" }
 
 [project.optional-dependencies]
 dev = [
