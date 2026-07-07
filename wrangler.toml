@@ -510,8 +510,21 @@ metrics = { enabled = true }
 # ============================================================================
 
 [build]
-command = "pip install -r requirements.txt"
-watch_dir = "src"
+command = """
+# Force UV to extract one wheel at a time
+export UV_CONCURRENT_INSTALLS=1
+export UV_CONCURRENT_DOWNLOADS=1
+
+# Use tmpfs for extraction (RAM disk)
+export TMPDIR=/tmp
+
+# Free space before install
+rm -rf /opt/buildhome/.cache/uv
+rm -rf /opt/buildhome/.cache/pip
+
+# Install with NO cache and ONE at a time
+uv sync --no-dev --no-cache
+"""
 
 # ============================================================================
 # PYTHON CONFIGURATION
