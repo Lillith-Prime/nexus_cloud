@@ -531,7 +531,7 @@ uv sync --no-dev --no-cache
 # ============================================================================
 
 [python]
-dependencies = [
+packages = [
     "numpy",
     "fastapi",
     "httpx",
