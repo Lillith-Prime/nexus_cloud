@@ -2944,6 +2944,10 @@ class FieldWorker:
     async def handle_pulse(self, packet: Dict) -> Dict:
         return await self.infinite_mesh.handle_pulse(packet)
 
+
+class Default(WorkerEntrypoint):
+    async def fetch(self, request):
+        return Response.json({"status": "online", "worker": "nexus-seed"})
 # ============================================================================
 # FASTAPI APPLICATION (Enhanced)
 # ============================================================================
