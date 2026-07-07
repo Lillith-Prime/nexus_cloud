@@ -448,21 +448,28 @@ def verify_jwt(token: str) -> Dict:
 # C++ PSUTIL WASM — Holographic Database Backend
 # ============================================================================
 
+# NEW — RIGHT
 class WASMBackend:
-    """C++ psutil + 50x RAID Database via FFI"""
-    
-    def __init__(self):
-        self.loaded = False
-        self.db = None
-        self._init_wasm()
-    
     def _init_wasm(self):
         try:
-            from js import HolographicDB
-            self.db = HolographicDB
-            self.db._init_raid()
-            self.loaded = True
-            logger.info("✅ C++ psutil WASM + Holographic Database loaded")
+            # Import the WASM module directly from the file
+            import holographic_db
+            self.db = holographic_db
+            # The module should export _init_raid() as a function
+            if hasattr(self.db, '_init_raid'):
+                self.db._init_raid()
+                self.loaded = True
+                logger.info("✅ C++ psutil WASM + Holographic Database loaded")
+            else:
+                # Try the JavaScript wrapper style
+                from js import HolographicDB as wasm_module
+                self.db = wasm_module
+                self.db._init_raid()
+                self.loaded = True
+                logger.info("✅ C++ psutil WASM + Holographic Database loaded via FFI")
+        except ImportError:
+            logger.warning("⚠️ WASM module not found, using Python emulation")
+            self.loaded = False
         except Exception as e:
             logger.warning(f"⚠️ WASM fallback: {e}")
             self.loaded = False
