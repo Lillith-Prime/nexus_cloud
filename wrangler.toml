@@ -222,15 +222,6 @@ binding = "HYPERCORE_003"
 service = "nexus-hypercore-003"
 environment = "production"
 
-[[services]]
-binding = "NATS_SERVICE"
-service = "nexus-nats"
-environment = "production"
-
-[[services]]
-binding = "QUANTUM_SERVICE"
-service = "nexus-quantum"
-environment = "production"
 
 # ============================================================================
 # ENVIRONMENTS — Hypercores (001–003)
