@@ -2947,7 +2947,11 @@ class FieldWorker:
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
-        return Response.json({"status": "online", "worker": "nexus-seed"})
+        return Response.json({
+            "status": "online",
+            "worker": "nexus-seed",
+            "version": "∞.0.0"
+        })
 # ============================================================================
 # FASTAPI APPLICATION (Enhanced)
 # ============================================================================
