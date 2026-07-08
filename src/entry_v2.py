@@ -2953,6 +2953,274 @@ class Default(WorkerEntrypoint):
             "worker": "nexus-seed",
             "version": "∞.0.0"
         })
+
+# ============================================================================
+# NATS ON HOLOGRAPHIC DATABASE — NO EXTERNAL DEPENDENCIES
+# ============================================================================
+
+class HolographicNATS:
+    """
+    NATS-compatible message bus on top of the holographic database.
+    Uses RAID shards for storage, no external dependencies.
+    """
+    
+    def __init__(self, wasm_backend):
+        self.db = wasm_backend
+        self.subscriptions = {}
+        self.streams = {}
+        self.consumers = {}
+    
+    # ===== STREAMS (JetStream equivalents) =====
+    
+    def add_stream(self, name: str, subjects: List[str], retention: str = 'workqueue') -> Dict:
+        """Create a stream in the holographic database"""
+        stream_id = f"stream_{name}"
+        
+        # Store stream metadata in RAID
+        metadata = {
+            'name': name,
+            'subjects': subjects,
+            'retention': retention,
+            'created': time.time(),
+            'message_count': 0,
+            'bytes': 0
+        }
+        
+        shard_id = self.db.raid_write(json.dumps(metadata), 'stream_metadata')
+        self.streams[name] = {
+            'metadata': metadata,
+            'shard_id': shard_id,
+            'messages': {}
+        }
+        
+        return {'status': 'created', 'name': name, 'shard_id': shard_id}
+    
+    def publish(self, subject: str, data: bytes) -> Dict:
+        """Publish a message to a subject"""
+        # Find which stream this subject belongs to
+        stream_name = self._find_stream(subject)
+        if not stream_name:
+            return {'error': f'No stream found for subject {subject}'}
+        
+        stream = self.streams[stream_name]
+        message_id = f"msg_{uuid.uuid4().hex[:16]}"
+        
+        # Store message in RAID
+        message_data = {
+            'id': message_id,
+            'subject': subject,
+            'data': base64.b64encode(data).decode(),
+            'timestamp': time.time(),
+            'stream': stream_name
+        }
+        
+        shard_id = self.db.raid_write(json.dumps(message_data), 'messages')
+        
+        # Update stream metadata
+        stream['metadata']['message_count'] += 1
+        stream['messages'][message_id] = shard_id
+        
+        # Update stream metadata in RAID
+        self.db.raid_write(json.dumps(stream['metadata']), stream['metadata_shard_id'])
+        
+        return {
+            'status': 'published',
+            'message_id': message_id,
+            'subject': subject,
+            'shard_id': shard_id,
+            'stream': stream_name
+        }
+    
+    def subscribe(self, subject: str, callback: Callable) -> Dict:
+        """Subscribe to a subject"""
+        if subject not in self.subscriptions:
+            self.subscriptions[subject] = []
+        self.subscriptions[subject].append(callback)
+        
+        return {'status': 'subscribed', 'subject': subject}
+    
+    def pull(self, subject: str, batch_size: int = 10) -> List[Dict]:
+        """Pull messages from a subject (workqueue style)"""
+        stream_name = self._find_stream(subject)
+        if not stream_name:
+            return []
+        
+        stream = self.streams[stream_name]
+        messages = []
+        
+        for msg_id, shard_id in list(stream['messages'].items())[:batch_size]:
+            data = self.db.raid_read(shard_id)
+            if data:
+                message = json.loads(data)
+                messages.append(message)
+                # Remove from queue (workqueue retention)
+                del stream['messages'][msg_id]
+        
+        # Update stream metadata
+        self.db.raid_write(json.dumps(stream['metadata']), stream['metadata_shard_id'])
+        
+        return messages
+    
+    def _find_stream(self, subject: str) -> Optional[str]:
+        """Find which stream a subject belongs to"""
+        for name, stream in self.streams.items():
+            for s in stream['metadata']['subjects']:
+                if self._matches(subject, s):
+                    return name
+        return None
+    
+    def _matches(self, subject: str, pattern: str) -> bool:
+        """Simple wildcard matching for subjects"""
+        if pattern == '*' or pattern == '>':
+            return True
+        if '.' in pattern:
+            parts = pattern.split('.')
+            subj_parts = subject.split('.')
+            if len(parts) != len(subj_parts):
+                return False
+            for p, sp in zip(parts, subj_parts):
+                if p != '*' and p != sp:
+                    return False
+            return True
+        return subject == pattern
+    
+    def status(self) -> Dict:
+        """Get NATS status"""
+        return {
+            'streams': len(self.streams),
+            'subjects': len(self.subscriptions),
+            'total_messages': sum(s['metadata']['message_count'] for s in self.streams.values()),
+            'subscriptions': list(self.subscriptions.keys())
+        }
+
+
+# ============================================================================
+# JETSTREAM ON HOLOGRAPHIC DATABASE
+# ============================================================================
+
+class HolographicJetStream:
+    """
+    JetStream-compatible persistent queues on the holographic database.
+    """
+    
+    def __init__(self, nats: HolographicNATS):
+        self.nats = nats
+        self.consumers = {}
+    
+    def add_stream(self, name: str, subjects: List[str], retention: str = 'workqueue') -> Dict:
+        """Create a JetStream stream"""
+        return self.nats.add_stream(name, subjects, retention)
+    
+    def publish(self, subject: str, data: bytes) -> Dict:
+        """Publish to a JetStream stream"""
+        return self.nats.publish(subject, data)
+    
+    def pull(self, stream_name: str, consumer_name: str, batch_size: int = 10) -> List[Dict]:
+        """Pull messages as a consumer"""
+        stream = self.nats.streams.get(stream_name)
+        if not stream:
+            return []
+        
+        # Create consumer if it doesn't exist
+        if consumer_name not in self.consumers:
+            self.consumers[consumer_name] = {
+                'stream': stream_name,
+                'offset': 0,
+                'created': time.time()
+            }
+        
+        consumer = self.consumers[consumer_name]
+        messages = []
+        
+        # Get messages from stream
+        msg_ids = list(stream['messages'].keys())
+        start = consumer['offset']
+        end = min(start + batch_size, len(msg_ids))
+        
+        for i in range(start, end):
+            msg_id = msg_ids[i]
+            shard_id = stream['messages'][msg_id]
+            data = self.nats.db.raid_read(shard_id)
+            if data:
+                messages.append(json.loads(data))
+        
+        consumer['offset'] = end
+        
+        return messages
+    
+    def ack(self, stream_name: str, message_id: str) -> Dict:
+        """Acknowledge a message (remove from queue)"""
+        stream = self.nats.streams.get(stream_name)
+        if not stream:
+            return {'error': 'Stream not found'}
+        
+        if message_id in stream['messages']:
+            del stream['messages'][message_id]
+            return {'status': 'acknowledged', 'message_id': message_id}
+        
+        return {'error': 'Message not found'}
+    
+    def status(self) -> Dict:
+        """Get JetStream status"""
+        return {
+            'streams': len(self.nats.streams),
+            'consumers': len(self.consumers),
+            'messages': sum(s['metadata']['message_count'] for s in self.nats.streams.values())
+        }
+
+
+# ============================================================================
+# INTEGRATION INTO YOUR WORKER
+# ============================================================================
+
+class MeshNATS:
+    """
+    Complete NATS + JetStream system on the holographic database.
+    This is what the seed worker births.
+    """
+    
+    def __init__(self, wasm_backend):
+        self.db = wasm_backend
+        self.nats = HolographicNATS(wasm_backend)
+        self.jetstream = HolographicJetStream(self.nats)
+        
+        # Create default streams
+        self.jetstream.add_stream('nexus', ['nexus.*'], 'workqueue')
+        self.jetstream.add_stream('workers', ['workers.*'], 'workqueue')
+        self.jetstream.add_stream('memory', ['memory.*'], 'workqueue')
+        
+        print("🌐 MeshNATS initialized on holographic database")
+        print(f"   Streams: {list(self.nats.streams.keys())}")
+    
+    def publish(self, subject: str, data: Any) -> Dict:
+        """Publish a message"""
+        if isinstance(data, dict):
+            data = json.dumps(data).encode()
+        elif isinstance(data, str):
+            data = data.encode()
+        return self.jetstream.publish(subject, data)
+    
+    def subscribe(self, subject: str, callback: Callable) -> Dict:
+        """Subscribe to messages"""
+        return self.nats.subscribe(subject, callback)
+    
+    def pull(self, stream_name: str, consumer_name: str, batch_size: int = 10) -> List[Dict]:
+        """Pull messages"""
+        return self.jetstream.pull(stream_name, consumer_name, batch_size)
+    
+    def ack(self, stream_name: str, message_id: str) -> Dict:
+        """Acknowledge a message"""
+        return self.jetstream.ack(stream_name, message_id)
+    
+    def status(self) -> Dict:
+        """Get mesh NATS status"""
+        return {
+            'nats': self.nats.status(),
+            'jetstream': self.jetstream.status(),
+            'streams': list(self.nats.streams.keys()),
+            'db_loaded': self.db.loaded
+        }
+        
 # ============================================================================
 # FASTAPI APPLICATION (Enhanced)
 # ============================================================================
