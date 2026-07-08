@@ -69,6 +69,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Set, Union, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from workers import WorkerEntrypoint, Response
 import uuid
 import random
 import logging
